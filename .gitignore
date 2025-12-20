@@ -1,0 +1,43 @@
+# Node modules (if you add build tools later)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Personal data
+conversations.json
+*.json.bak
+test-data/
+personal-notes/
+
+# Chrome extension artifacts
+*.crx
+*.pem
+*.zip
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-*
+*.code-workspace
+
+# Logs and temp files
+*.log
+tmp/
+temp/
+.cache/
+
+# Environment files
+.env
+.env.local
+*.secret
+
+# Build artifacts
+dist/
+build/

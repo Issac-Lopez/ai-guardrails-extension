@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Journal - AI Guardrails</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .journal-container {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 700px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .journal-header {
+      margin-bottom: 30px;
+      position: relative;
+    }
+
+    .journal-title {
+      font-size: 28px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 10px;
+    }
+
+    .journal-subtitle {
+      font-size: 16px;
+      color: #666;
+      margin-bottom: 12px;
+    }
+
+    .toggle-history-btn {
+      padding: 8px 16px;
+      background: #f0f0f0;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .toggle-history-btn:hover {
+      background: #e0e0e0;
+    }
+
+    .journal-history {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .journal-history h3 {
+      font-size: 16px;
+      color: #1a1a1a;
+      margin-bottom: 16px;
+    }
+
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .history-item {
+      padding: 12px 16px;
+      background: white;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 2px solid transparent;
+    }
+
+    .history-item:hover {
+      border-color: #667eea;
+      background: #f9fafb;
+    }
+
+    .history-item.active {
+      border-color: #667eea;
+      background: #eef2ff;
+    }
+
+    .history-date {
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 4px;
+    }
+
+    .history-preview {
+      font-size: 14px;
+      color: #666;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .history-empty {
+      text-align: center;
+      color: #999;
+      font-size: 14px;
+      padding: 20px;
+    }
+
+    .journal-prompts {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .journal-prompts h3 {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .journal-prompts ul {
+      list-style: none;
+    }
+
+    .journal-prompts li {
+      font-size: 15px;
+      color: #1a1a1a;
+      margin-bottom: 8px;
+      padding-left: 20px;
+      position: relative;
+    }
+
+    .journal-prompts li::before {
+      content: '≠';
+      position: absolute;
+      left: 0;
+    }
+
+    .journal-textarea {
+      width: 100%;
+      min-height: 300px;
+      padding: 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 16px;
+      font-family: inherit;
+      resize: vertical;
+      transition: border-color 0.2s;
+    }
+
+    .journal-textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .journal-actions {
+      margin-top: 20px;
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+
+    .journal-btn {
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+
+    .journal-btn-primary {
+      background: #667eea;
+      color: white;
+    }
+
+    .journal-btn-primary:hover {
+      background: #5568d3;
+    }
+
+    .journal-btn-secondary {
+      background: #f0f0f0;
+      color: #1a1a1a;
+    }
+
+    .journal-btn-secondary:hover {
+      background: #e0e0e0;
+    }
+
+    .journal-saved {
+      display: none;
+      background: #d4edda;
+      color: #155724;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-top: 16px;
+      font-size: 14px;
+    }
+
+    .journal-saved.show {
+      display: block;
+    }
+
+    /* Obsidian path reminder */
+    .obsidian-reminder {
+      background: #e8f5e9;
+      border: 2px solid #4caf50;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+
+    .obsidian-reminder-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #2e7d32;
+    }
+
+    .obsidian-edit-btn {
+      background: transparent;
+      border: none;
+      color: #2e7d32;
+      cursor: pointer;
+      font-size: 13px;
+      text-decoration: underline;
+    }
+
+    .obsidian-edit-btn:hover {
+      color: #1b5e20;
+    }
+
+    .obsidian-path {
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      color: #1b5e20;
+      background: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      word-break: break-all;
+    }
+
+    /* Obsidian setup */
+    .obsidian-setup {
+      background: #fff3e0;
+      border: 2px dashed #ff9800;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+
+    .obsidian-setup-text {
+      margin-bottom: 12px;
+      color: #e65100;
+      font-size: 14px;
+    }
+
+    .obsidian-input-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .obsidian-input {
+      flex: 1;
+      padding: 10px 12px;
+      border: 2px solid #ffb74d;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: 'Courier New', monospace;
+    }
+
+    .obsidian-input:focus {
+      outline: none;
+      border-color: #ff9800;
+    }
+
+    /* Read-only message */
+    .journal-readonly-message {
+      background: #fff9c4;
+      border: 2px solid #fbc02d;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 12px;
+      color: #f57f17;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="journal-container">
+    <div class="journal-header">
+      <h1 class="journal-title">ù Journal</h1>
+      <p class="journal-subtitle">Take a moment to reflect on what you're feeling</p>
+      <button class="toggle-history-btn" id="toggle-history-btn">View History</button>
+    </div>
+
+    <div class="journal-history" id="journal-history" style="display: none;">
+      <h3>Past Entries</h3>
+      <div class="history-list" id="history-list">
+        <p class="history-empty">No past entries yet.</p>
+      </div>
+    </div>
+
+    <div class="journal-prompts">
+      <h3>Prompts to consider:</h3>
+      <ul>
+        <li>What are you feeling right now?</li>
+        <li>What do you really need in this moment?</li>
+        <li>What would you tell a friend in this situation?</li>
+        <li>What are you afraid will happen?</li>
+      </ul>
+    </div>
+
+    <textarea class="journal-textarea" id="journal-text" placeholder="Start writing..."></textarea>
+
+    <div class="journal-actions">
+      <button class="journal-btn journal-btn-secondary" id="clear-btn">Clear</button>
+      <button class="journal-btn journal-btn-secondary" id="copy-btn">ã Copy</button>
+      <button class="journal-btn journal-btn-secondary" id="export-btn">æ Export</button>
+      <button class="journal-btn journal-btn-primary" id="save-btn">Save Entry</button>
+    </div>
+
+    <div class="journal-saved" id="saved-message">
+       Entry saved! Your thoughts are stored locally in your browser.
+    </div>
+
+    <div class="obsidian-reminder" id="obsidian-reminder" style="display: none;">
+      <div class="obsidian-reminder-header">
+        <span>Å Obsidian Vault</span>
+        <button class="obsidian-edit-btn" id="edit-path-btn">Edit</button>
+      </div>
+      <div class="obsidian-path" id="obsidian-path"></div>
+    </div>
+
+    <div class="obsidian-setup" id="obsidian-setup">
+      <p class="obsidian-setup-text">° <strong>Tip:</strong> Set your Obsidian vault path for quick access</p>
+      <div class="obsidian-input-group">
+        <input type="text" class="obsidian-input" id="path-input" placeholder="C:\path\to\obsidian\vault\journal">
+        <button class="journal-btn journal-btn-primary" id="save-path-btn">Save Path</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="journal.js"></script>
+</body>
+</html>

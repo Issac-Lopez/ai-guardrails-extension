@@ -1,0 +1,152 @@
+/* AI Guardrails Modal Styles */
+
+.guardrails-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.guardrails-modal {
+  background: white;
+  border-radius: 12px;
+  padding: 32px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.guardrails-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.guardrails-modal-icon {
+  font-size: 32px;
+}
+
+.guardrails-modal-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.guardrails-modal-message {
+  font-size: 16px;
+  line-height: 1.5;
+  color: #4a4a4a;
+  margin-bottom: 24px;
+}
+
+.guardrails-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.guardrails-btn {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.guardrails-btn-primary {
+  background: #10a37f;
+  color: white;
+}
+
+.guardrails-btn-primary:hover {
+  background: #0d8c6d;
+}
+
+.guardrails-btn-secondary {
+  background: #f0f0f0;
+  color: #1a1a1a;
+}
+
+.guardrails-btn-secondary:hover {
+  background: #e0e0e0;
+}
+
+.guardrails-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Alternative actions */
+.guardrails-alternatives {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.guardrails-alt-btn {
+  padding: 14px 20px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 2px solid #e0e0e0;
+  background: white;
+  color: #1a1a1a;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.guardrails-alt-btn:hover {
+  border-color: #10a37f;
+  background: #f0fdf9;
+}
+
+.guardrails-divider {
+  text-align: center;
+  color: #999;
+  font-size: 13px;
+  margin: 16px 0;
+  position: relative;
+}
+
+.guardrails-divider::before,
+.guardrails-divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 40%;
+  height: 1px;
+  background: #e0e0e0;
+}
+
+.guardrails-divider::before {
+  left: 0;
+}
+
+.guardrails-divider::after {
+  right: 0;
+}
