@@ -55,57 +55,117 @@ async function incrementStrike(category) {
 // Note: Strikes will automatically reset daily
 // To manually reset for testing: uninstall and reinstall the extension
 
-// Relationship keywords - simple detection for MVP
-const relationshipKeywords = [
-  // Direct relationship terms
-  'girlfriend', 'boyfriend', 'partner', 'wife', 'husband', 'spouse',
-  'dating', 'relationship', 'breakup', 'break up', 'breaking up',
-  'divorce', 'married', 'marriage', 'engaged', 'engagement',
-  'fiance', 'fiancee',
+// Guardrail Categories Configuration
+const guardrailCategories = {
+  relationships: {
+    name: "Intimate Relationships",
+    strikeKey: "relationships",
+    enabled: true,
+    keywords: [
+      // Direct relationship terms
+      'girlfriend', 'boyfriend', 'partner', 'wife', 'husband', 'spouse',
+      'dating', 'relationship', 'breakup', 'break up', 'breaking up',
+      'divorce', 'married', 'marriage', 'engaged', 'engagement',
+      'fiance', 'fiancee',
 
-  // Decision-making phrases
-  'should i break up', 'should i leave', 'should i stay',
-  'is it time to', 'thinking about breaking', 'thinking of leaving',
-  'considering breaking up', 'considering divorce', 'worth breaking up',
-  'reasons to break up', 'reasons to leave', 'signs i should',
+      // Decision-making phrases
+      'should i break up', 'should i leave', 'should i stay',
+      'is it time to', 'thinking about breaking', 'thinking of leaving',
+      'considering breaking up', 'considering divorce', 'worth breaking up',
+      'reasons to break up', 'reasons to leave', 'signs i should',
 
-  // Emotional venting
-  'my ex', 'my gf', 'my bf', 'my so',
-  'fighting with my', 'argue with my', 'mad at my',
-  'hate my', 'can\'t stand my', 'done with my',
-  'fed up with', 'tired of my', 'sick of my',
+      // Emotional venting
+      'my ex', 'my gf', 'my bf', 'my so',
+      'fighting with my', 'argue with my', 'mad at my',
+      'hate my', 'can\'t stand my', 'done with my',
+      'fed up with', 'tired of my', 'sick of my',
 
-  // Relationship quality concerns
-  'toxic relationship', 'unhealthy relationship', 'red flags',
-  'not working out', 'falling out of love', 'don\'t love',
-  'love fading', 'spark is gone', 'growing apart',
-  'we fight all the time', 'constant arguing', 'always fighting',
+      // Relationship quality concerns
+      'toxic relationship', 'unhealthy relationship', 'red flags',
+      'not working out', 'falling out of love', 'don\'t love',
+      'love fading', 'spark is gone', 'growing apart',
+      'we fight all the time', 'constant arguing', 'always fighting',
 
-  // Partner discussion indicators
-  'she said', 'he said', 'they said', 'she told me', 'he told me',
-  'she wants', 'he wants', 'she thinks', 'he thinks',
-  'she doesn\'t', 'he doesn\'t', 'she never', 'he never',
+      // Partner discussion indicators
+      'she said', 'he said', 'they said', 'she told me', 'he told me',
+      'she wants', 'he wants', 'she thinks', 'he thinks',
+      'she doesn\'t', 'he doesn\'t', 'she never', 'he never',
 
-  // Therapy/counseling mentions
-  'couples therapy', 'relationship counseling', 'marriage counseling',
+      // Therapy/counseling mentions
+      'couples therapy', 'relationship counseling', 'marriage counseling',
 
-  // Betrayal/trust issues
-  'cheating', 'cheated on me', 'caught cheating', 'affair',
-  'can\'t trust', 'trust issues', 'lying to me', 'lied to me'
-];
+      // Betrayal/trust issues
+      'cheating', 'cheated on me', 'caught cheating', 'affair',
+      'can\'t trust', 'trust issues', 'lying to me', 'lied to me'
+    ],
+    messages: {
+      strike1Title: "Relationship Check-In",
+      strike1Body: "It looks like you're discussing relationship issues.<br><br><strong>Consider these alternatives:</strong>",
+      strike2Title: "Second Warning",
+      strike2Body: "You've triggered this guardrail <strong>2 times today</strong>.<br><br>This might be a sign you need to talk to someone real, not AI.<br><br><strong>Try one of these instead:</strong>",
+      strike3Title: "Daily Limit Reached",
+      strike3Body: "You've reached your limit for relationship discussions today.<br><br><strong>This conversation is blocked for 24 hours.</strong><br><br>Instead of using AI, try one of these:"
+    }
+  },
 
-// Function to check if message contains relationship keywords
-function containsRelationshipKeywords(message) {
+  work: {
+    name: "Work Conflicts",
+    strikeKey: "work",
+    enabled: true,
+    keywords: [
+      // Job/workplace terms
+      'my boss', 'my manager', 'my supervisor', 'my coworker', 'my colleague',
+      'my job', 'my work', 'at work', 'workplace',
+
+      // Quitting/leaving
+      'should i quit', 'thinking about quitting', 'want to quit',
+      'hate my job', 'hate this job', 'can\'t stand my job',
+      'looking for new job', 'job hunting', 'ready to quit',
+
+      // Workplace conflicts
+      'toxic workplace', 'toxic work environment', 'bad boss',
+      'micromanaging', 'office politics', 'work drama',
+      'hostile work environment', 'bullying at work',
+
+      // Venting about coworkers/boss
+      'my boss is', 'my manager is', 'my coworker is',
+      'boss said', 'manager said', 'boss told me',
+      'doesn\'t appreciate', 'taking credit for my',
+      'boss yelled', 'got yelled at', 'unfair treatment'
+    ],
+    messages: {
+      strike1Title: "Work Venting Check-In",
+      strike1Body: "Looks like you're venting about work conflicts.<br><br><strong>Consider these alternatives:</strong>",
+      strike2Title: "Second Warning",
+      strike2Body: "You've triggered this guardrail <strong>2 times today</strong>.<br><br>Venting to AI won't solve work issues.<br><br><strong>Try one of these instead:</strong>",
+      strike3Title: "Daily Limit Reached",
+      strike3Body: "You've reached your limit for work discussions today.<br><br><strong>This conversation is blocked for 24 hours.</strong><br><br>Instead of using AI, try one of these:"
+    }
+  }
+};
+
+// Function to detect which guardrail category is violated
+function detectGuardrailViolation(message) {
   const lowerMessage = message.toLowerCase();
 
-  for (let keyword of relationshipKeywords) {
-    if (lowerMessage.includes(keyword.toLowerCase())) {
-      console.log('Detected relationship keyword:', keyword);
-      return true;
+  // Check each enabled category
+  for (const [categoryId, category] of Object.entries(guardrailCategories)) {
+    if (!category.enabled) continue;
+
+    // Check keywords for this category
+    for (let keyword of category.keywords) {
+      if (lowerMessage.includes(keyword.toLowerCase())) {
+        console.log(`Detected ${category.name} keyword:`, keyword);
+        return {
+          categoryId: categoryId,
+          category: category,
+          keyword: keyword
+        };
+      }
     }
   }
 
-  return false;
+  return null; // No violation detected
 }
 
 // Function to get the current message from the textarea
@@ -119,7 +179,7 @@ function getCurrentMessage() {
 }
 
 // Function to create and show the modal
-function showWarningModal(message, strikeLevel) {
+function showWarningModal(message, strikeLevel, category) {
   // Create modal overlay
   const overlay = document.createElement('div');
   overlay.className = 'guardrails-modal-overlay';
@@ -130,38 +190,22 @@ function showWarningModal(message, strikeLevel) {
   if (strikeLevel === 1) {
     // Strike 1 - Soft warning
     icon = '';
-    title = 'Relationship Check-In';
-    messageText = `
-      It looks like you're discussing relationship issues.
-      <br><br>
-      <strong>Consider these alternatives:</strong>
-    `;
+    title = category.messages.strike1Title;
+    messageText = category.messages.strike1Body;
     showContinue = true;
     delaySeconds = 5;
   } else if (strikeLevel === 2) {
     // Strike 2 - Stronger warning
     icon = '';
-    title = 'Second Warning';
-    messageText = `
-      You've triggered this guardrail <strong>2 times today</strong>.
-      <br><br>
-      This might be a sign you need to talk to someone real, not AI.
-      <br><br>
-      <strong>Try one of these instead:</strong>
-    `;
+    title = category.messages.strike2Title;
+    messageText = category.messages.strike2Body;
     showContinue = true;
     delaySeconds = 10;
   } else {
     // Strike 3 - Hard block
     icon = '';
-    title = 'Daily Limit Reached';
-    messageText = `
-      You've reached your limit for relationship discussions today.
-      <br><br>
-      <strong>This conversation is blocked for 24 hours.</strong>
-      <br><br>
-      Instead of using AI, try one of these:
-    `;
+    title = category.messages.strike3Title;
+    messageText = category.messages.strike3Body;
     showContinue = false;
     delaySeconds = 0;
   }
@@ -185,8 +229,8 @@ function showWarningModal(message, strikeLevel) {
     </div>
     <div class="guardrails-divider">or</div>
   `;
-  } else if (strikeLevel === 3) {
-    // Strike 3: Only show journal and talk (no "Wait 24 Hours" since already blocked)
+  } else if (strikeLevel >= 3) {
+    // Strike 3+: Only show journal and talk (no "Wait 24 Hours" since already blocked)
     alternativeActionsHTML = `
     <div class="guardrails-alternatives">
       <button class="guardrails-alt-btn" id="guardrails-journal">
@@ -263,7 +307,7 @@ function showWarningModal(message, strikeLevel) {
   });
 
   // Handle alternative action buttons (for all strike levels)
-  if (strikeLevel === 1 || strikeLevel === 2 || strikeLevel === 3) {
+  if (strikeLevel >= 1) {
     // Journal Instead button
     const journalBtn = overlay.querySelector('#guardrails-journal');
     if (journalBtn) {
@@ -290,7 +334,7 @@ function showWarningModal(message, strikeLevel) {
       waitBtn.addEventListener('click', function() {
         if (timer) clearInterval(timer);
         overlay.remove();
-        setWait24Hours();
+        setWait24Hours(category);
       });
     }
   }
@@ -346,14 +390,15 @@ function showTalkToSomeoneMessage() {
 }
 
 // Alternative Action: Set 24-hour wait
-async function setWait24Hours() {
-  console.log(' Setting 24-hour wait...');
+async function setWait24Hours(category) {
+  console.log(` Setting 24-hour wait for ${category.name}...`);
 
   // Set a block that expires in 24 hours
   const blockUntil = Date.now() + (24 * 60 * 60 * 1000); // 24 hours from now
+  const blockKey = `${category.strikeKey}_block_until`;
 
   await chrome.storage.local.set({
-    relationship_block_until: blockUntil
+    [blockKey]: blockUntil
   });
 
   // Show confirmation
@@ -366,7 +411,7 @@ async function setWait24Hours() {
         <h2 class="guardrails-modal-title">See You Tomorrow</h2>
       </div>
       <div class="guardrails-modal-message">
-        Relationship discussions are now blocked for 24 hours.
+        ${category.name} discussions are now blocked for 24 hours.
         <br><br>
         Take this time to:
         <ul style="margin-top: 12px; padding-left: 20px;">
@@ -430,44 +475,48 @@ async function checkAndIntercept(event) {
     // Check if this is a bypass click (user clicked continue)
     const sendButton = document.querySelector('button[data-testid="send-button"]');
     if (sendButton && sendButton.hasAttribute('data-guardrails-bypass')) {
-      console.log(' Bypassing guardrails (user clicked continue)');
+      console.log('Bypassing guardrails (user clicked continue)');
       return; // Allow the message through
     }
 
-    // Check if message contains relationship keywords
-    if (containsRelationshipKeywords(message)) {
-      console.log('Intercepted relationship message:', message);
+    // Check if message violates any guardrail
+    const violation = detectGuardrailViolation(message);
+
+    if (violation) {
+      const { categoryId, category } = violation;
+      console.log(`Intercepted ${category.name} message:`, message);
 
       // Stop the message from sending
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
 
-      // Check if there's an active 24-hour block
-      const blockUntil = await chrome.storage.local.get(['relationship_block_until']);
-      if (blockUntil.relationship_block_until && Date.now() < blockUntil.relationship_block_until) {
-        console.log('24-hour block is active');
-        showBlockedMessage(blockUntil.relationship_block_until);
+      // Check if there's an active 24-hour block for this category
+      const blockKey = `${categoryId}_block_until`;
+      const blockData = await chrome.storage.local.get([blockKey]);
+      if (blockData[blockKey] && Date.now() < blockData[blockKey]) {
+        console.log(`24-hour block active for ${category.name}`);
+        showBlockedMessage(blockData[blockKey], category);
         return false;
       }
 
       // Get current strike count and increment
-      const strikeCount = await incrementStrike('relationships');
-      console.log(`Strike ${strikeCount} triggered`);
+      const strikeCount = await incrementStrike(category.strikeKey);
+      console.log(`${category.name} - Strike ${strikeCount} triggered`);
 
       // Show the modal with appropriate strike level
-      showWarningModal(message, strikeCount);
+      showWarningModal(message, strikeCount, category);
 
       return false;
     } else {
       // No keywords detected - let the message through
-      console.log(' Message allowed (no keywords detected)');
+      console.log('Message allowed (no keywords detected)');
     }
   }
 }
 
 // Show blocked message (24-hour wait)
-function showBlockedMessage(blockUntil) {
+function showBlockedMessage(blockUntil, category) {
   const hoursLeft = Math.ceil((blockUntil - Date.now()) / (1000 * 60 * 60));
 
   const overlay = document.createElement('div');
@@ -479,7 +528,7 @@ function showBlockedMessage(blockUntil) {
         <h2 class="guardrails-modal-title">Still Waiting...</h2>
       </div>
       <div class="guardrails-modal-message">
-        Relationship discussions are blocked for another <strong>${hoursLeft} hour(s)</strong>.
+        ${category.name} discussions are blocked for another <strong>${hoursLeft} hour(s)</strong>.
         <br><br>
         Use this time to talk to someone real.
       </div>
