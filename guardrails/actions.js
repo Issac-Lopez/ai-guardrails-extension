@@ -4,11 +4,132 @@
 (function() {
   'use strict';
 
-  // Alternative Action: Open Journal Page
+  // Alternative Action: Show Journal Fullscreen Overlay
   function openJournal(message) {
-    console.log('Guardrails: Opening journal page...');
-    const journalUrl = chrome.runtime.getURL('journal/journal.html');
-    window.open(journalUrl, '_blank');
+    console.log('Guardrails: Opening journal overlay...');
+
+    // Create fullscreen overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'guardrails-journal-overlay';
+    overlay.innerHTML = `
+      <div class="guardrails-journal-container">
+        <div class="guardrails-journal-header">
+          <h1 class="guardrails-journal-title">Journal</h1>
+          <p class="guardrails-journal-subtitle">Take a moment to reflect on what you're feeling</p>
+        </div>
+
+        <div class="guardrails-journal-prompts">
+          <div class="guardrails-journal-prompts-title">Prompts to consider:</div>
+          <ul>
+            <li>What are you feeling right now?</li>
+            <li>What do you really need in this moment?</li>
+            <li>What would you tell a friend in this situation?</li>
+            <li>What are you afraid will happen?</li>
+          </ul>
+        </div>
+
+        <textarea
+          class="guardrails-journal-textarea"
+          id="guardrails-journal-text"
+          placeholder="Start writing..."
+          autofocus
+        ></textarea>
+
+        <div class="guardrails-journal-footer">
+          <div class="guardrails-journal-saved" id="guardrails-journal-saved">
+            Entry saved
+          </div>
+          <div class="guardrails-journal-actions">
+            <button class="guardrails-btn guardrails-btn-secondary" id="guardrails-journal-close">
+              Close
+            </button>
+            <button class="guardrails-btn guardrails-btn-primary" id="guardrails-journal-save">
+              Save Entry
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // Get elements
+    const textarea = overlay.querySelector('#guardrails-journal-text');
+    const saveBtn = overlay.querySelector('#guardrails-journal-save');
+    const closeBtn = overlay.querySelector('#guardrails-journal-close');
+    const savedMsg = overlay.querySelector('#guardrails-journal-saved');
+
+    // Load today's entry if it exists
+    loadTodayEntry(textarea);
+
+    // Auto-focus textarea
+    setTimeout(() => textarea.focus(), 100);
+
+    // Save button handler
+    saveBtn.addEventListener('click', function() {
+      const text = textarea.value.trim();
+      if (text) {
+        saveJournalEntry(text);
+        showSavedMessage(savedMsg);
+      }
+    });
+
+    // Close button handler
+    closeBtn.addEventListener('click', function() {
+      overlay.remove();
+    });
+
+    // Auto-save every 10 seconds
+    const autoSaveInterval = setInterval(function() {
+      const text = textarea.value.trim();
+      if (text) {
+        saveJournalEntry(text);
+      }
+    }, 10000);
+
+    // Clean up interval when overlay is removed
+    overlay.addEventListener('remove', function() {
+      clearInterval(autoSaveInterval);
+    });
+
+    // Close on overlay click (but not on container click)
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) {
+        overlay.remove();
+      }
+    });
+  }
+
+  // Load today's journal entry
+  function loadTodayEntry(textarea) {
+    const today = new Date().toISOString().split('T')[0];
+    chrome.storage.local.get(['journal_entries'], function(result) {
+      const entries = result.journal_entries || {};
+      if (entries[today]) {
+        textarea.value = entries[today];
+      }
+    });
+  }
+
+  // Save journal entry
+  function saveJournalEntry(text) {
+    const today = new Date().toISOString().split('T')[0];
+    chrome.storage.local.get(['journal_entries'], function(result) {
+      const entries = result.journal_entries || {};
+      entries[today] = text;
+
+      chrome.storage.local.set({ journal_entries: entries }, function() {
+        console.log('Guardrails: Journal entry saved for', today);
+      });
+    });
+  }
+
+  // Show saved message
+  function showSavedMessage(savedMsg) {
+    savedMsg.classList.add('show');
+    setTimeout(function() {
+      savedMsg.classList.remove('show');
+    }, 2000);
   }
 
   // Alternative Action: Show "Talk to Someone" message

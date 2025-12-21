@@ -5,13 +5,21 @@
   'use strict';
 
   // Function to detect which guardrail category is violated
-  function detectViolation(message) {
+  async function detectViolation(message) {
     const lowerMessage = message.toLowerCase();
     const categories = window.GuardrailsConfig.categories;
 
+    // Get enabled settings from storage
+    const enabledSettings = await getEnabledSettings();
+
     // Check each enabled category
     for (const [categoryId, category] of Object.entries(categories)) {
-      if (!category.enabled) continue;
+      // Check if category is enabled (default to true if not set)
+      const isEnabled = enabledSettings[categoryId] !== false;
+      if (!isEnabled) {
+        console.log(`Guardrails: ${category.name} is disabled, skipping`);
+        continue;
+      }
 
       // Check keywords for this category
       for (let keyword of category.keywords) {
@@ -27,6 +35,15 @@
     }
 
     return null; // No violation detected
+  }
+
+  // Get enabled settings from Chrome storage
+  function getEnabledSettings() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(['guardrails_enabled'], function(result) {
+        resolve(result.guardrails_enabled || {});
+      });
+    });
   }
 
   // Expose to global scope

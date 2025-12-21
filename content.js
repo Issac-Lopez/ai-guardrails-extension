@@ -57,7 +57,7 @@ async function checkAndIntercept(event) {
     }
 
     // Check if message violates any guardrail
-    const violation = window.GuardrailsDetector.detectViolation(message);
+    const violation = await window.GuardrailsDetector.detectViolation(message);
 
     if (violation) {
       const { categoryId, category } = violation;
