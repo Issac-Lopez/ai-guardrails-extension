@@ -61,15 +61,37 @@ const relationshipKeywords = [
   'girlfriend', 'boyfriend', 'partner', 'wife', 'husband', 'spouse',
   'dating', 'relationship', 'breakup', 'break up', 'breaking up',
   'divorce', 'married', 'marriage', 'engaged', 'engagement',
+  'fiance', 'fiancee',
 
-  // Emotional relationship phrases
-  'should i break up', 'should i leave', 'is it time to',
-  'thinking about breaking', 'thinking of leaving',
-  'my ex', 'my gf', 'my bf',
+  // Decision-making phrases
+  'should i break up', 'should i leave', 'should i stay',
+  'is it time to', 'thinking about breaking', 'thinking of leaving',
+  'considering breaking up', 'considering divorce', 'worth breaking up',
+  'reasons to break up', 'reasons to leave', 'signs i should',
 
-  // Conflict terms
+  // Emotional venting
+  'my ex', 'my gf', 'my bf', 'my so',
   'fighting with my', 'argue with my', 'mad at my',
-  'she said', 'he said', 'they said' // when discussing partner conversations
+  'hate my', 'can\'t stand my', 'done with my',
+  'fed up with', 'tired of my', 'sick of my',
+
+  // Relationship quality concerns
+  'toxic relationship', 'unhealthy relationship', 'red flags',
+  'not working out', 'falling out of love', 'don\'t love',
+  'love fading', 'spark is gone', 'growing apart',
+  'we fight all the time', 'constant arguing', 'always fighting',
+
+  // Partner discussion indicators
+  'she said', 'he said', 'they said', 'she told me', 'he told me',
+  'she wants', 'he wants', 'she thinks', 'he thinks',
+  'she doesn\'t', 'he doesn\'t', 'she never', 'he never',
+
+  // Therapy/counseling mentions
+  'couples therapy', 'relationship counseling', 'marriage counseling',
+
+  // Betrayal/trust issues
+  'cheating', 'cheated on me', 'caught cheating', 'affair',
+  'can\'t trust', 'trust issues', 'lying to me', 'lied to me'
 ];
 
 // Function to check if message contains relationship keywords
