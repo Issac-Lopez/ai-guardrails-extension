@@ -157,14 +157,56 @@ function loadJournalHistory() {
   });
 }
 
-// View journal entry
+// View journal entry in custom modal
 function viewJournal(date) {
   chrome.storage.local.get(['journal_entries'], function(result) {
     const entries = result.journal_entries || {};
     const text = entries[date];
 
     if (text) {
-      alert(`Journal Entry - ${date}\n\n${text}`);
+      showJournalModal(date, text);
+    }
+  });
+}
+
+// Show journal entry in custom modal
+function showJournalModal(date, text) {
+  // Create modal overlay
+  const modal = document.createElement('div');
+  modal.className = 'journal-modal-overlay';
+  modal.innerHTML = `
+    <div class="journal-modal">
+      <div class="journal-modal-header">
+        <h2 class="journal-modal-title">Journal Entry - ${formatDate(date)}</h2>
+      </div>
+      <div class="journal-modal-content">
+        ${text}
+      </div>
+      <div class="journal-modal-actions">
+        <button class="btn btn-secondary" id="journal-modal-export">Export</button>
+        <button class="btn btn-primary" id="journal-modal-close">Close</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  // Close button
+  const closeBtn = modal.querySelector('#journal-modal-close');
+  closeBtn.addEventListener('click', function() {
+    modal.remove();
+  });
+
+  // Export button
+  const exportBtn = modal.querySelector('#journal-modal-export');
+  exportBtn.addEventListener('click', function() {
+    exportJournal(date);
+  });
+
+  // Close on overlay click
+  modal.addEventListener('click', function(e) {
+    if (e.target === modal) {
+      modal.remove();
     }
   });
 }
@@ -222,14 +264,22 @@ function exportAllJournals() {
 
 // Reset all strikes
 function resetStrikes() {
-  if (confirm('Are you sure you want to reset all strike counts?')) {
+  console.log('Reset strikes button clicked');
+
+  const confirmed = confirm('Are you sure you want to reset all strike counts?');
+  console.log('User confirmed:', confirmed);
+
+  if (confirmed) {
     const today = new Date().toISOString().split('T')[0];
     const resetData = { date: today, relationships: 0, work: 0 };
 
     chrome.storage.local.set({ guardrails_strikes: resetData }, function() {
+      console.log('Strikes reset successful');
       showSuccess('All strikes reset to 0');
       loadStrikesStats(); // Refresh stats
     });
+  } else {
+    console.log('User cancelled reset');
   }
 }
 
@@ -310,7 +360,10 @@ function showError(message) {
 
 // Attach event listeners
 function attachEventListeners() {
-  resetStrikesBtn.addEventListener('click', resetStrikes);
+  resetStrikesBtn.addEventListener('click', function(e) {
+    e.preventDefault();
+    resetStrikes();
+  });
   exportAllJournalsBtn.addEventListener('click', exportAllJournals);
   exportAllDataBtn.addEventListener('click', exportAllData);
   clearAllDataBtn.addEventListener('click', clearAllData);

@@ -168,6 +168,9 @@
 
   // Show blocked message (24-hour wait)
   function showBlockedMessage(blockUntil, category) {
+    // Remove any existing overlays first
+    document.querySelectorAll('.guardrails-modal-overlay').forEach(el => el.remove());
+
     const hoursLeft = Math.ceil((blockUntil - Date.now()) / (1000 * 60 * 60));
 
     const overlay = document.createElement('div');
@@ -194,8 +197,19 @@
     document.body.appendChild(overlay);
 
     const closeBtn = overlay.querySelector('#blocked-close');
-    closeBtn.addEventListener('click', function() {
+    closeBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      e.preventDefault();
+      console.log('Close button clicked');
       overlay.remove();
+    });
+
+    // Also close on overlay background click
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) {
+        console.log('Overlay background clicked');
+        overlay.remove();
+      }
     });
   }
 
