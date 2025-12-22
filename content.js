@@ -1,9 +1,16 @@
-// AI Guardrails - Content Script
+// ========================================
+// AI GUARDRAILS - CONTENT SCRIPT
+// ========================================
 // This script runs on chat.openai.com, chatgpt.com, and claude.ai
+// Intercepts messages containing sensitive keywords and provides
+// alternatives to using AI for emotional support
 
 console.log('AI Guardrails extension loaded!');
 
-// Platform detection
+// ========================================
+// PLATFORM DETECTION
+// ========================================
+
 function detectPlatform() {
   const hostname = window.location.hostname;
   if (hostname.includes('claude.ai')) {
@@ -17,19 +24,241 @@ function detectPlatform() {
 const PLATFORM = detectPlatform();
 console.log('Detected platform:', PLATFORM);
 
-// Store the original message to restore if user cancels
-let interceptedMessage = null;
+// ========================================
+// CONFIGURATION - GUARDRAIL CATEGORIES
+// ========================================
 
-// Strike tracking
-const STRIKE_STORAGE_KEY = 'guardrails_strikes';
+const GUARDRAIL_CATEGORIES = {
+  relationships: {
+    id: 'relationships',
+    name: 'Relationship',
+    namePlural: 'relationship',
+    icon: '💔',
+    keywords: [
+      // Direct relationship terms
+      'girlfriend', 'boyfriend', 'partner', 'wife', 'husband', 'spouse',
+      'dating', 'relationship', 'breakup', 'break up', 'breaking up',
+      'divorce', 'married', 'marriage', 'engaged', 'engagement',
 
-// Get today's date string (for daily reset)
+      // Emotional relationship phrases
+      'should i break up', 'should i leave', 'is it time to',
+      'thinking about breaking', 'thinking of leaving',
+      'my ex', 'my gf', 'my bf',
+
+      // Conflict terms
+      'fighting with my', 'argue with my', 'mad at my',
+      'she said', 'he said', 'they said'
+    ],
+    strikeKey: 'relationships',
+    blockKey: 'relationship_block_until',
+    messages: {
+      strike1: {
+        title: 'Relationship Check-In',
+        text: `
+          It looks like you're discussing relationship issues.
+          <br><br>
+          <strong>Consider these alternatives:</strong>
+        `
+      },
+      strike2: {
+        title: 'Second Warning',
+        text: `
+          You've triggered this guardrail <strong>2 times today</strong>.
+          <br><br>
+          This might be a sign you need to talk to someone real, not AI.
+          <br><br>
+          <strong>Try one of these instead:</strong>
+        `
+      },
+      strike3: {
+        title: 'Daily Limit Reached',
+        text: `
+          You've reached your limit for relationship discussions today.
+          <br><br>
+          <strong>This conversation is blocked for 24 hours.</strong>
+          <br><br>
+          Instead of using AI, try one of these:
+        `
+      },
+      blocked: {
+        title: 'Still Waiting...',
+        text: 'Relationship discussions are blocked for another <strong>{hours} hour(s)</strong>.<br><br>Use this time to talk to someone real.'
+      },
+      wait24: {
+        title: 'See You Tomorrow',
+        text: 'Relationship discussions are now blocked for 24 hours.'
+      }
+    }
+  },
+
+  work: {
+    id: 'work',
+    name: 'Work',
+    namePlural: 'work',
+    icon: '💼',
+    keywords: [
+      // Direct work terms
+      'my boss', 'my manager', 'my coworker', 'my colleague',
+      'at work', 'my job', 'my workplace', 'my company',
+
+      // Work conflict terms
+      'quit my job', 'quitting my job', 'should i quit',
+      'hate my job', 'toxic workplace', 'bad manager',
+      'work drama', 'office politics',
+
+      // Work venting
+      'my boss is', 'my manager is', 'coworker is',
+      'fired', 'getting fired', 'layoff', 'laid off'
+    ],
+    strikeKey: 'work',
+    blockKey: 'work_block_until',
+    messages: {
+      strike1: {
+        title: 'Work Conflict Check-In',
+        text: `
+          It looks like you're venting about work issues.
+          <br><br>
+          <strong>Consider these alternatives:</strong>
+        `
+      },
+      strike2: {
+        title: 'Second Warning',
+        text: `
+          You've triggered this guardrail <strong>2 times today</strong>.
+          <br><br>
+          Work stress is real - consider talking to someone who can actually help.
+          <br><br>
+          <strong>Try one of these instead:</strong>
+        `
+      },
+      strike3: {
+        title: 'Daily Limit Reached',
+        text: `
+          You've reached your limit for work discussions today.
+          <br><br>
+          <strong>This conversation is blocked for 24 hours.</strong>
+          <br><br>
+          Instead of using AI, try one of these:
+        `
+      },
+      blocked: {
+        title: 'Still Waiting...',
+        text: 'Work discussions are blocked for another <strong>{hours} hour(s)</strong>.<br><br>Use this time to talk to someone who can help.'
+      },
+      wait24: {
+        title: 'See You Tomorrow',
+        text: 'Work discussions are now blocked for 24 hours.'
+      }
+    }
+  },
+
+  family: {
+    id: 'family',
+    name: 'Family',
+    namePlural: 'family',
+    icon: '👨‍👩‍👧',
+    keywords: [
+      // Direct family terms
+      'my mom', 'my dad', 'my mother', 'my father',
+      'my parents', 'my sibling', 'my brother', 'my sister',
+      'my son', 'my daughter', 'my child', 'my kids',
+
+      // Family conflict terms
+      'family drama', 'family conflict', 'toxic family',
+      'argue with my mom', 'argue with my dad',
+      'fighting with my parents', 'family issues',
+
+      // Parenting terms
+      'parenting', 'raising kids', 'my teenager',
+      'grounded my', 'punish my child'
+    ],
+    strikeKey: 'family',
+    blockKey: 'family_block_until',
+    messages: {
+      strike1: {
+        title: 'Family Issues Check-In',
+        text: `
+          It looks like you're discussing family conflicts.
+          <br><br>
+          <strong>Consider these alternatives:</strong>
+        `
+      },
+      strike2: {
+        title: 'Second Warning',
+        text: `
+          You've triggered this guardrail <strong>2 times today</strong>.
+          <br><br>
+          Family issues are complex - consider talking to someone who knows your situation.
+          <br><br>
+          <strong>Try one of these instead:</strong>
+        `
+      },
+      strike3: {
+        title: 'Daily Limit Reached',
+        text: `
+          You've reached your limit for family discussions today.
+          <br><br>
+          <strong>This conversation is blocked for 24 hours.</strong>
+          <br><br>
+          Instead of using AI, try one of these:
+        `
+      },
+      blocked: {
+        title: 'Still Waiting...',
+        text: 'Family discussions are blocked for another <strong>{hours} hour(s)</strong>.<br><br>Use this time to reach out to someone real.'
+      },
+      wait24: {
+        title: 'See You Tomorrow',
+        text: 'Family discussions are now blocked for 24 hours.'
+      }
+    }
+  }
+};
+
+// Which categories are currently enabled
+// TODO: Make this user-configurable via settings UI
+const ENABLED_CATEGORIES = ['relationships', 'work', 'family'];
+
+// ========================================
+// UTILITY FUNCTIONS
+// ========================================
+
+// Get today's date string (for daily strike reset)
 function getTodayDateString() {
   const today = new Date();
   return today.toISOString().split('T')[0]; // Returns YYYY-MM-DD
 }
 
-// Get strikes from storage
+// Get the current message from the textarea (works across platforms)
+function getCurrentMessage() {
+  const selectors = [
+    'div[contenteditable="true"]',  // ChatGPT and Claude.ai
+    'textarea[placeholder*="Message"]',  // Fallback
+    'textarea',  // Generic textarea
+    '.ProseMirror'  // Some versions use ProseMirror editor
+  ];
+
+  for (const selector of selectors) {
+    const element = document.querySelector(selector);
+    if (element) {
+      const text = element.textContent || element.innerText || element.value || '';
+      if (text.trim()) {
+        return text;
+      }
+      return text;
+    }
+  }
+
+  return '';
+}
+
+// ========================================
+// STRIKE MANAGEMENT
+// ========================================
+
+const STRIKE_STORAGE_KEY = 'guardrails_strikes';
+
+// Get all strikes from storage
 async function getStrikes() {
   return new Promise((resolve) => {
     chrome.storage.local.get([STRIKE_STORAGE_KEY], function(result) {
@@ -39,7 +268,12 @@ async function getStrikes() {
       // Reset strikes if it's a new day
       if (data.date !== today) {
         console.log('New day detected, resetting strikes');
-        resolve({ date: today, relationships: 0 });
+        const resetData = { date: today };
+        // Initialize all categories to 0
+        Object.keys(GUARDRAIL_CATEGORIES).forEach(categoryId => {
+          resetData[categoryId] = 0;
+        });
+        resolve(resetData);
       } else {
         resolve(data);
       }
@@ -58,41 +292,25 @@ async function saveStrikes(strikes) {
 }
 
 // Increment strike count for a category
-async function incrementStrike(category) {
+async function incrementStrike(categoryId) {
   const strikes = await getStrikes();
-  strikes[category] = (strikes[category] || 0) + 1;
-  strikes.date = getTodayDateString(); // Ensure date is set
+  strikes[categoryId] = (strikes[categoryId] || 0) + 1;
+  strikes.date = getTodayDateString();
   await saveStrikes(strikes);
-  return strikes[category]; // Return current strike count
+  return strikes[categoryId];
 }
 
-// Note: Strikes will automatically reset daily
-// To manually reset for testing: uninstall and reinstall the extension
+// ========================================
+// KEYWORD DETECTION
+// ========================================
 
-// Relationship keywords - simple detection for MVP
-const relationshipKeywords = [
-  // Direct relationship terms
-  'girlfriend', 'boyfriend', 'partner', 'wife', 'husband', 'spouse',
-  'dating', 'relationship', 'breakup', 'break up', 'breaking up',
-  'divorce', 'married', 'marriage', 'engaged', 'engagement',
-
-  // Emotional relationship phrases
-  'should i break up', 'should i leave', 'is it time to',
-  'thinking about breaking', 'thinking of leaving',
-  'my ex', 'my gf', 'my bf',
-
-  // Conflict terms
-  'fighting with my', 'argue with my', 'mad at my',
-  'she said', 'he said', 'they said' // when discussing partner conversations
-];
-
-// Function to check if message contains relationship keywords
-function containsRelationshipKeywords(message) {
+// Check if message contains keywords from a specific category
+function containsCategoryKeywords(message, category) {
   const lowerMessage = message.toLowerCase();
 
-  for (let keyword of relationshipKeywords) {
+  for (let keyword of category.keywords) {
     if (lowerMessage.includes(keyword.toLowerCase())) {
-      console.log('Detected relationship keyword:', keyword);
+      console.log(`Detected ${category.id} keyword:`, keyword);
       return true;
     }
   }
@@ -100,76 +318,40 @@ function containsRelationshipKeywords(message) {
   return false;
 }
 
-// Function to get the current message from the textarea
-function getCurrentMessage() {
-  // Try multiple selectors for different platforms
-  const selectors = [
-    'div[contenteditable="true"]',  // ChatGPT and Claude.ai both use this
-    'textarea[placeholder*="Message"]',  // Fallback for textarea
-    'textarea',  // Generic textarea fallback
-    '.ProseMirror'  // Some versions of Claude use ProseMirror editor
-  ];
-
-  for (const selector of selectors) {
-    const element = document.querySelector(selector);
-    if (element) {
-      // Try different ways to get the text content
-      const text = element.textContent || element.innerText || element.value || '';
-      if (text.trim()) {
-        return text;
-      }
-      // Even if empty, return the element's content (might be empty message being sent)
-      return text;
+// Detect which category (if any) the message triggers
+// Returns the first matched category or null
+function detectTriggeredCategory(message) {
+  for (const categoryId of ENABLED_CATEGORIES) {
+    const category = GUARDRAIL_CATEGORIES[categoryId];
+    if (containsCategoryKeywords(message, category)) {
+      return category;
     }
   }
-
-  return '';
+  return null;
 }
 
-// Function to create and show the modal
-function showWarningModal(message, strikeLevel) {
-  // Create modal overlay
+// ========================================
+// MODAL GENERATION
+// ========================================
+
+// Create and show the warning modal for a specific category
+function showWarningModal(message, category, strikeLevel) {
   const overlay = document.createElement('div');
   overlay.className = 'guardrails-modal-overlay';
 
-  // Different content based on strike level
-  let icon, title, messageText, showContinue, delaySeconds;
+  // Get messages for this category and strike level
+  let messageConfig, showContinue, delaySeconds;
 
   if (strikeLevel === 1) {
-    // Strike 1 - Soft warning
-    icon = '';
-    title = 'Relationship Check-In';
-    messageText = `
-      It looks like you're discussing relationship issues.
-      <br><br>
-      <strong>Consider these alternatives:</strong>
-    `;
+    messageConfig = category.messages.strike1;
     showContinue = true;
     delaySeconds = 5;
   } else if (strikeLevel === 2) {
-    // Strike 2 - Stronger warning
-    icon = '';
-    title = 'Second Warning';
-    messageText = `
-      You've triggered this guardrail <strong>2 times today</strong>.
-      <br><br>
-      This might be a sign you need to talk to someone real, not AI.
-      <br><br>
-      <strong>Try one of these instead:</strong>
-    `;
+    messageConfig = category.messages.strike2;
     showContinue = true;
     delaySeconds = 10;
   } else {
-    // Strike 3 - Hard block
-    icon = '';
-    title = 'Daily Limit Reached';
-    messageText = `
-      You've reached your limit for relationship discussions today.
-      <br><br>
-      <strong>This conversation is blocked for 24 hours.</strong>
-      <br><br>
-      Instead of using AI, try one of these:
-    `;
+    messageConfig = category.messages.strike3;
     showContinue = false;
     delaySeconds = 0;
   }
@@ -178,30 +360,28 @@ function showWarningModal(message, strikeLevel) {
   let alternativeActionsHTML = '';
 
   if (strikeLevel === 1 || strikeLevel === 2) {
-    // Strike 1 & 2: Show all alternatives including "Continue anyway"
     alternativeActionsHTML = `
     <div class="guardrails-alternatives">
       <button class="guardrails-alt-btn" id="guardrails-journal">
-        Journal Instead
+        📝 Journal Instead
       </button>
       <button class="guardrails-alt-btn" id="guardrails-talk">
-        Talk to Someone
+        💬 Talk to Someone
       </button>
       <button class="guardrails-alt-btn" id="guardrails-wait">
-         Wait 24 Hours
+        ⏰ Wait 24 Hours
       </button>
     </div>
     <div class="guardrails-divider">or</div>
   `;
   } else {
-    // Strike 3+: Only show journal and talk (no "Wait 24 Hours" since already blocked)
     alternativeActionsHTML = `
     <div class="guardrails-alternatives">
       <button class="guardrails-alt-btn" id="guardrails-journal">
-        Journal Instead
+        📝 Journal Instead
       </button>
       <button class="guardrails-alt-btn" id="guardrails-talk">
-        Talk to Someone
+        💬 Talk to Someone
       </button>
     </div>
   `;
@@ -211,11 +391,11 @@ function showWarningModal(message, strikeLevel) {
   overlay.innerHTML = `
     <div class="guardrails-modal">
       <div class="guardrails-modal-header">
-        <span class="guardrails-modal-icon">${icon}</span>
-        <h2 class="guardrails-modal-title">${title}</h2>
+        <span class="guardrails-modal-icon">${category.icon}</span>
+        <h2 class="guardrails-modal-title">${messageConfig.title}</h2>
       </div>
       <div class="guardrails-modal-message">
-        ${messageText}
+        ${messageConfig.text}
       </div>
       ${alternativeActionsHTML}
       <div class="guardrails-modal-actions">
@@ -227,7 +407,6 @@ function showWarningModal(message, strikeLevel) {
     </div>
   `;
 
-  // Add to page
   document.body.appendChild(overlay);
 
   let timer;
@@ -237,18 +416,15 @@ function showWarningModal(message, strikeLevel) {
     const continueBtn = overlay.querySelector('#guardrails-continue');
     let countdown = delaySeconds;
 
-    // Disable button initially
     continueBtn.disabled = true;
     continueBtn.textContent = `Continue anyway (${countdown}s)`;
 
-    // Start countdown
     timer = setInterval(function() {
       countdown--;
 
       if (countdown > 0) {
         continueBtn.textContent = `Continue anyway (${countdown}s)`;
       } else {
-        // Enable button after delay
         clearInterval(timer);
         continueBtn.disabled = false;
         continueBtn.textContent = 'Continue anyway';
@@ -256,9 +432,8 @@ function showWarningModal(message, strikeLevel) {
     }, 1000);
 
     continueBtn.addEventListener('click', function() {
-      if (timer) clearInterval(timer); // Clean up timer
+      if (timer) clearInterval(timer);
       overlay.remove();
-      // Allow the message to send
       sendMessageToChat(message);
     });
   }
@@ -266,11 +441,11 @@ function showWarningModal(message, strikeLevel) {
   // Handle cancel/close button
   const cancelBtn = overlay.querySelector('#guardrails-cancel');
   cancelBtn.addEventListener('click', function() {
-    if (timer) clearInterval(timer); // Clean up timer
+    if (timer) clearInterval(timer);
     overlay.remove();
   });
 
-  // Handle alternative action buttons (for all strike levels)
+  // Handle alternative action buttons
   if (strikeLevel >= 1) {
     // Journal Instead button
     const journalBtn = overlay.querySelector('#guardrails-journal');
@@ -298,31 +473,65 @@ function showWarningModal(message, strikeLevel) {
       waitBtn.addEventListener('click', function() {
         if (timer) clearInterval(timer);
         overlay.remove();
-        setWait24Hours();
+        setWait24Hours(category);
       });
     }
   }
 }
 
-// Alternative Action: Open Journal Page
-function openJournalPage(message) {
-  console.log('Opening journal page...');
-  // Open journal in new tab
-  const journalUrl = chrome.runtime.getURL('journal.html');
-  window.open(journalUrl, '_blank');
-}
+// Show blocked message (when 24-hour block is active)
+function showBlockedMessage(category, blockUntil) {
+  const hoursLeft = Math.ceil((blockUntil - Date.now()) / (1000 * 60 * 60));
+  const messageText = category.messages.blocked.text.replace('{hours}', hoursLeft);
 
-// Alternative Action: Show "Talk to Someone" message
-function showTalkToSomeoneMessage() {
-  console.log('User chose to talk to someone');
-
-  // Create a simple overlay with encouragement
   const overlay = document.createElement('div');
   overlay.className = 'guardrails-modal-overlay';
   overlay.innerHTML = `
     <div class="guardrails-modal">
       <div class="guardrails-modal-header">
-        <span class="guardrails-modal-icon">!</span>
+        <span class="guardrails-modal-icon">${category.icon}</span>
+        <h2 class="guardrails-modal-title">${category.messages.blocked.title}</h2>
+      </div>
+      <div class="guardrails-modal-message">
+        ${messageText}
+      </div>
+      <div class="guardrails-modal-actions">
+        <button class="guardrails-btn guardrails-btn-primary" id="blocked-close">
+          Close
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const closeBtn = overlay.querySelector('#blocked-close');
+  closeBtn.addEventListener('click', function() {
+    overlay.remove();
+  });
+}
+
+// ========================================
+// ALTERNATIVE ACTIONS
+// ========================================
+
+// Open journal page in new tab
+function openJournalPage(message) {
+  console.log('Opening journal page...');
+  const journalUrl = chrome.runtime.getURL('journal.html');
+  window.open(journalUrl, '_blank');
+}
+
+// Show "Talk to Someone" encouragement message
+function showTalkToSomeoneMessage() {
+  console.log('User chose to talk to someone');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'guardrails-modal-overlay';
+  overlay.innerHTML = `
+    <div class="guardrails-modal">
+      <div class="guardrails-modal-header">
+        <span class="guardrails-modal-icon">💬</span>
         <h2 class="guardrails-modal-title">Great Choice!</h2>
       </div>
       <div class="guardrails-modal-message">
@@ -331,9 +540,9 @@ function showTalkToSomeoneMessage() {
         <strong>Consider reaching out to:</strong>
         <ul style="margin-top: 12px; padding-left: 20px;">
           <li>A trusted friend</li>
-          <li>Your partner</li>
-          <li>A family member</li>
+          <li>Your partner or family member</li>
           <li>A therapist or counselor</li>
+          <li>A mentor or advisor</li>
         </ul>
       </div>
       <div class="guardrails-modal-actions">
@@ -346,22 +555,20 @@ function showTalkToSomeoneMessage() {
 
   document.body.appendChild(overlay);
 
-  // Close button
   const closeBtn = overlay.querySelector('#talk-close');
   closeBtn.addEventListener('click', function() {
     overlay.remove();
   });
 }
 
-// Alternative Action: Set 24-hour wait
-async function setWait24Hours() {
-  console.log(' Setting 24-hour wait...');
+// Set 24-hour block for a specific category
+async function setWait24Hours(category) {
+  console.log(`⏰ Setting 24-hour wait for ${category.id}...`);
 
-  // Set a block that expires in 24 hours
   const blockUntil = Date.now() + (24 * 60 * 60 * 1000); // 24 hours from now
 
   await chrome.storage.local.set({
-    relationship_block_until: blockUntil
+    [category.blockKey]: blockUntil
   });
 
   // Show confirmation
@@ -370,11 +577,11 @@ async function setWait24Hours() {
   overlay.innerHTML = `
     <div class="guardrails-modal">
       <div class="guardrails-modal-header">
-        <span class="guardrails-modal-icon"></span>
-        <h2 class="guardrails-modal-title">See You Tomorrow</h2>
+        <span class="guardrails-modal-icon">${category.icon}</span>
+        <h2 class="guardrails-modal-title">${category.messages.wait24.title}</h2>
       </div>
       <div class="guardrails-modal-message">
-        Relationship discussions are now blocked for 24 hours.
+        ${category.messages.wait24.text}
         <br><br>
         Take this time to:
         <ul style="margin-top: 12px; padding-left: 20px;">
@@ -395,34 +602,28 @@ async function setWait24Hours() {
 
   document.body.appendChild(overlay);
 
-  // Close button
   const closeBtn = overlay.querySelector('#wait-close');
   closeBtn.addEventListener('click', function() {
     overlay.remove();
   });
 }
 
-// Function to programmatically send the message
+// ========================================
+// MESSAGE INTERCEPTION
+// ========================================
+
+// Programmatically send the message (after user clicks "Continue")
 function sendMessageToChat(message) {
-  // Get the textarea and set the message
   const textarea = document.querySelector('div[contenteditable="true"]');
   if (textarea) {
-    // Clear and set new content
     textarea.textContent = message;
-
-    // Trigger input event to update ChatGPT's state
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
 
-    // Find and click the send button
     const sendButton = document.querySelector('button[data-testid="send-button"]');
     if (sendButton) {
-      // Temporarily disable our interceptor
       sendButton.setAttribute('data-guardrails-bypass', 'true');
-
-      // Click the button
       sendButton.click();
 
-      // Re-enable interceptor after a short delay
       setTimeout(() => {
         sendButton.removeAttribute('data-guardrails-bypass');
       }, 100);
@@ -430,7 +631,7 @@ function sendMessageToChat(message) {
   }
 }
 
-// Function to check message and show modal
+// Main interception function - checks all enabled categories
 async function checkAndIntercept(event) {
   const message = getCurrentMessage();
 
@@ -438,84 +639,58 @@ async function checkAndIntercept(event) {
     // Check if this is a bypass click (user clicked continue)
     const sendButton = document.querySelector('button[data-testid="send-button"]');
     if (sendButton && sendButton.hasAttribute('data-guardrails-bypass')) {
-      console.log(' Bypassing guardrails (user clicked continue)');
-      return; // Allow the message through
+      console.log('✅ Bypassing guardrails (user clicked continue)');
+      return;
     }
 
-    // Check if message contains relationship keywords
-    if (containsRelationshipKeywords(message)) {
-      console.log('Intercepted relationship message:', message);
+    // Detect which category (if any) is triggered
+    const triggeredCategory = detectTriggeredCategory(message);
+
+    if (triggeredCategory) {
+      console.log(`🚨 Intercepted ${triggeredCategory.id} message:`, message);
 
       // Stop the message from sending
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
 
-      // Check if there's an active 24-hour block
-      const blockUntil = await chrome.storage.local.get(['relationship_block_until']);
-      if (blockUntil.relationship_block_until && Date.now() < blockUntil.relationship_block_until) {
-        console.log('24-hour block is active');
-        showBlockedMessage(blockUntil.relationship_block_until);
+      // Check if there's an active 24-hour block for this category
+      const blockData = await chrome.storage.local.get([triggeredCategory.blockKey]);
+      const blockUntil = blockData[triggeredCategory.blockKey];
+
+      if (blockUntil && Date.now() < blockUntil) {
+        console.log(`🛑 24-hour block is active for ${triggeredCategory.id}`);
+        showBlockedMessage(triggeredCategory, blockUntil);
         return false;
       }
 
       // Get current strike count and increment
-      const strikeCount = await incrementStrike('relationships');
-      console.log(`Strike ${strikeCount} triggered`);
+      const strikeCount = await incrementStrike(triggeredCategory.id);
+      console.log(`⚠️ Strike ${strikeCount} triggered for ${triggeredCategory.id}`);
 
       // Show the modal with appropriate strike level
-      showWarningModal(message, strikeCount);
+      showWarningModal(message, triggeredCategory, strikeCount);
 
       return false;
     } else {
       // No keywords detected - let the message through
-      console.log(' Message allowed (no keywords detected)');
+      console.log('✅ Message allowed (no keywords detected)');
     }
   }
 }
 
-// Show blocked message (24-hour wait)
-function showBlockedMessage(blockUntil) {
-  const hoursLeft = Math.ceil((blockUntil - Date.now()) / (1000 * 60 * 60));
+// ========================================
+// DOM INTERCEPTION SETUP
+// ========================================
 
-  const overlay = document.createElement('div');
-  overlay.className = 'guardrails-modal-overlay';
-  overlay.innerHTML = `
-    <div class="guardrails-modal">
-      <div class="guardrails-modal-header">
-        <span class="guardrails-modal-icon"></span>
-        <h2 class="guardrails-modal-title">Still Waiting...</h2>
-      </div>
-      <div class="guardrails-modal-message">
-        Relationship discussions are blocked for another <strong>${hoursLeft} hour(s)</strong>.
-        <br><br>
-        Use this time to talk to someone real.
-      </div>
-      <div class="guardrails-modal-actions">
-        <button class="guardrails-btn guardrails-btn-primary" id="blocked-close">
-          Close
-        </button>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(overlay);
-
-  const closeBtn = overlay.querySelector('#blocked-close');
-  closeBtn.addEventListener('click', function() {
-    overlay.remove();
-  });
-}
-
-// Function to intercept the send button click
+// Intercept send button clicks
 function interceptSendButton() {
-  // Try multiple selectors for different platforms
   const selectors = [
     'button[data-testid="send-button"]',  // ChatGPT
-    'button[aria-label*="Send"]',  // Claude.ai (aria-label contains "Send")
+    'button[aria-label*="Send"]',  // Claude.ai
     'button[aria-label*="send"]',  // Case variation
-    'button:has(svg)',  // Button containing SVG icon (common pattern)
-    'form button[type="submit"]'  // Generic submit button in form
+    'button:has(svg)',  // Button containing SVG icon
+    'form button[type="submit"]'  // Generic submit button
   ];
 
   for (const selector of selectors) {
@@ -523,12 +698,10 @@ function interceptSendButton() {
 
     sendButtons.forEach(sendButton => {
       if (sendButton && !sendButton.hasAttribute('data-guardrails-attached')) {
-        console.log('Found send button, attaching interceptor...', selector);
+        console.log('✅ Found send button, attaching interceptor...', selector);
 
-        // Mark this button as already processed
         sendButton.setAttribute('data-guardrails-attached', 'true');
 
-        // Intercept clicks on the send button - try multiple event types
         ['click', 'mousedown', 'pointerdown'].forEach(eventType => {
           sendButton.addEventListener(eventType, checkAndIntercept, true);
         });
@@ -537,14 +710,13 @@ function interceptSendButton() {
   }
 }
 
-// Function to intercept Enter key on textarea
+// Intercept Enter key on textarea
 function interceptTextarea() {
-  // Try multiple selectors for different platforms
   const selectors = [
     'div[contenteditable="true"]',  // ChatGPT and Claude.ai
-    'textarea[placeholder*="Message"]',  // Fallback for textarea
+    'textarea[placeholder*="Message"]',  // Fallback
     'textarea',  // Generic textarea
-    '.ProseMirror'  // Some versions use ProseMirror editor
+    '.ProseMirror'  // ProseMirror editor
   ];
 
   for (const selector of selectors) {
@@ -554,12 +726,9 @@ function interceptTextarea() {
       if (textarea && !textarea.hasAttribute('data-guardrails-attached')) {
         console.log('✅ Found textarea, attaching Enter key interceptor...', selector);
 
-        // Mark this textarea as already processed
         textarea.setAttribute('data-guardrails-attached', 'true');
 
-        // Intercept Enter key (without Shift)
         textarea.addEventListener('keydown', function(event) {
-          // Enter key without Shift sends the message
           if (event.key === 'Enter' && !event.shiftKey) {
             checkAndIntercept(event);
           }
@@ -569,13 +738,11 @@ function interceptTextarea() {
   }
 }
 
-// Watch for the send button to appear (both ChatGPT and Claude.ai load dynamically)
+// Watch for DOM changes and attach interceptors
 function startWatching() {
-  // Try to attach immediately
   interceptSendButton();
   interceptTextarea();
 
-  // Also watch for changes (in case button or textarea appears later)
   const observer = new MutationObserver(function(mutations) {
     interceptSendButton();
     interceptTextarea();
@@ -586,8 +753,12 @@ function startWatching() {
     subtree: true
   });
 
-  console.log('Watching for send button and textarea...');
+  console.log('👀 Watching for send button and textarea...');
 }
+
+// ========================================
+// INITIALIZATION
+// ========================================
 
 // Start when page is ready
 if (document.readyState === 'loading') {
