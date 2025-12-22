@@ -21,6 +21,7 @@ const menuClear = document.getElementById('menu-clear');
 const promptsToggle = document.getElementById('prompts-toggle');
 const promptsModal = document.getElementById('prompts-modal');
 const promptsClose = document.getElementById('prompts-close');
+const promptQuestion = document.getElementById('prompt-question');
 
 // History
 const historyModal = document.getElementById('history-modal');
@@ -31,8 +32,46 @@ const historyClose = document.getElementById('history-close');
 let currentDate = new Date().toISOString().split('T')[0];
 
 // ========================================
+// CATEGORY-SPECIFIC PROMPTS
+// ========================================
+
+const questionPrompt = "Do you want help getting started?";
+
+const CATEGORY_PROMPTS = {
+  relationships: {
+    toggle: questionPrompt,
+    modal: "What are you really looking for from this relationship right now?"
+  },
+  work: {
+    toggle: questionPrompt,
+    modal: "What aspects of this work situation are within your control?"
+  },
+  family: {
+    toggle: questionPrompt,
+    modal: "What would help you feel more understood in this family dynamic?"
+  },
+  default: {
+    toggle: questionPrompt,
+    modal: "What are you feeling right now?"
+  }
+};
+
+// Get category from URL parameter
+function getCategoryFromURL() {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get('category') || 'default';
+}
+
+const triggeredCategory = getCategoryFromURL();
+const categoryPrompt = CATEGORY_PROMPTS[triggeredCategory] || CATEGORY_PROMPTS.default;
+
+// ========================================
 // INITIALIZATION
 // ========================================
+
+// Set category-specific prompts
+promptsToggle.textContent = categoryPrompt.toggle;
+promptQuestion.textContent = categoryPrompt.modal;
 
 // Load today's entry and set date
 loadTodayEntry();
@@ -176,7 +215,7 @@ historyClose.addEventListener('click', function() {
 // AUTO-SAVE
 // ========================================
 
-// Auto-save every 10 seconds
+// Auto-save every second
 setInterval(function() {
   const text = textarea.value.trim();
 
@@ -184,7 +223,7 @@ setInterval(function() {
   if (!textarea.hasAttribute('readonly') && text) {
     saveJournalEntry(text, true); // true = silent save
   }
-}, 10000);
+}, 1000);
 
 // ========================================
 // CORE FUNCTIONS

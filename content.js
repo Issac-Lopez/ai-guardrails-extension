@@ -336,6 +336,8 @@ function detectTriggeredCategory(message) {
 
 // Create and show the warning modal for a specific category
 function showWarningModal(message, category, strikeLevel) {
+  console.log('📋 Showing modal for category:', category.id, 'strike:', strikeLevel);
+
   const overlay = document.createElement('div');
   overlay.className = 'guardrails-modal-overlay';
 
@@ -453,7 +455,7 @@ function showWarningModal(message, category, strikeLevel) {
       journalBtn.addEventListener('click', function() {
         if (timer) clearInterval(timer);
         overlay.remove();
-        openJournalPage(message);
+        openJournalPage(message, category);
       });
     }
 
@@ -516,9 +518,9 @@ function showBlockedMessage(category, blockUntil) {
 // ========================================
 
 // Open journal page in new tab
-function openJournalPage(message) {
-  console.log('Opening journal page...');
-  const journalUrl = chrome.runtime.getURL('journal.html');
+function openJournalPage(message, category) {
+  console.log('Opening journal page for category:', category.id);
+  const journalUrl = chrome.runtime.getURL('journal.html') + '?category=' + category.id;
   window.open(journalUrl, '_blank');
 }
 
@@ -633,6 +635,12 @@ function sendMessageToChat(message) {
 
 // Main interception function - checks all enabled categories
 async function checkAndIntercept(event) {
+  // Safety check: ensure chrome API is available
+  if (typeof chrome === 'undefined' || !chrome.storage) {
+    console.warn('⚠️ Chrome API not available, skipping guardrails check');
+    return;
+  }
+
   const message = getCurrentMessage();
 
   if (message.trim()) {
@@ -669,7 +677,11 @@ async function checkAndIntercept(event) {
       console.log(`⚠️ Strike ${strikeCount} triggered for ${triggeredCategory.id}`);
 
       // Show the modal with appropriate strike level
-      showWarningModal(message, triggeredCategory, strikeCount);
+      try {
+        showWarningModal(message, triggeredCategory, strikeCount);
+      } catch (error) {
+        console.error('❌ Error showing modal:', error);
+      }
 
       return false;
     } else {
