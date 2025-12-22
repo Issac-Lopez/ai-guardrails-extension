@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Journal - AI Guardrails</title>
+  <title>Journal</title>
   <style>
     * {
       margin: 0;
@@ -12,322 +12,400 @@
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: 'Georgia', 'Times New Roman', serif;
+      background: #f5f5f0;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 20px;
+      padding: 40px 20px;
     }
 
-    .journal-container {
-      background: white;
-      border-radius: 16px;
-      padding: 40px;
-      max-width: 700px;
-      width: 100%;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    }
-
-    .journal-header {
-      margin-bottom: 30px;
+    .journal-page {
+      background: #ffffff;
+      max-width: 1200px;
+      width: 95%;
+      min-height: 80vh;
+      padding: 60px 100px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
       position: relative;
     }
 
-    .journal-title {
-      font-size: 28px;
-      font-weight: 600;
-      color: #1a1a1a;
-      margin-bottom: 10px;
+    /* Subtle date header */
+    .journal-date {
+      font-size: 14px;
+      color: #999;
+      margin-bottom: 40px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      letter-spacing: 0.5px;
     }
 
-    .journal-subtitle {
-      font-size: 16px;
-      color: #666;
-      margin-bottom: 12px;
-    }
-
-    .toggle-history-btn {
-      padding: 8px 16px;
-      background: #f0f0f0;
+    /* Main writing area */
+    .journal-textarea {
+      width: 100%;
+      min-height: calc(80vh - 200px);
       border: none;
+      outline: none;
+      font-size: 18px;
+      line-height: 1.8;
+      color: #2a2a2a;
+      font-family: 'Georgia', 'Times New Roman', serif;
+      resize: none;
+      background: transparent;
+    }
+
+    .journal-textarea::placeholder {
+      color: #ccc;
+      font-style: italic;
+    }
+
+    /* Auto-save indicator */
+    .autosave-indicator {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      font-size: 12px;
+      color: #999;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .autosave-indicator.show {
+      opacity: 1;
+    }
+
+    /* Menu button (subtle, top-right corner) */
+    .menu-button {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: none;
+      border: none;
+      font-size: 20px;
+      color: #999;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .menu-button:hover {
+      background: #f5f5f5;
+      color: #666;
+    }
+
+    /* Dropdown menu */
+    .menu-dropdown {
+      position: absolute;
+      top: 50px;
+      right: 20px;
+      background: white;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      padding: 8px 0;
+      min-width: 180px;
+      display: none;
+      z-index: 1000;
+    }
+
+    .menu-dropdown.show {
+      display: block;
+    }
+
+    .menu-item {
+      padding: 12px 20px;
+      cursor: pointer;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      color: #333;
+      transition: background 0.2s;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+
+    .menu-item:hover {
+      background: #f5f5f5;
+    }
+
+    .menu-divider {
+      height: 1px;
+      background: #e0e0e0;
+      margin: 8px 0;
+    }
+
+    /* Prompts toggle link */
+    .prompts-toggle {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      font-size: 12px;
+      color: #999;
+      cursor: pointer;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      text-decoration: none;
+      border-bottom: 1px dashed #ccc;
+      transition: color 0.2s;
+    }
+
+    .prompts-toggle:hover {
+      color: #666;
+    }
+
+    /* Prompts modal */
+    .prompts-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+
+    .prompts-modal.show {
+      display: flex;
+    }
+
+    .prompts-content {
+      background: white;
+      padding: 40px;
+      border-radius: 12px;
+      max-width: 500px;
+      width: 90%;
+    }
+
+    .prompts-content h3 {
+      font-size: 18px;
+      color: #333;
+      margin-bottom: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .prompts-content ul {
+      list-style: none;
+      margin-bottom: 24px;
+    }
+
+    .prompts-content li {
+      font-size: 16px;
+      color: #555;
+      margin-bottom: 12px;
+      padding-left: 24px;
+      position: relative;
+      font-family: Georgia, serif;
+    }
+
+    .prompts-content li::before {
+      content: '‚Ä¢';
+      position: absolute;
+      left: 0;
+      color: #999;
+    }
+
+    .prompts-close {
+      background: #333;
+      color: white;
+      border: none;
+      padding: 10px 24px;
       border-radius: 6px;
       font-size: 14px;
       cursor: pointer;
-      transition: background 0.2s;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
-    .toggle-history-btn:hover {
-      background: #e0e0e0;
+    .prompts-close:hover {
+      background: #555;
     }
 
-    .journal-history {
-      background: #f8f9fa;
-      border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 20px;
-      max-height: 300px;
+    /* History modal */
+    .history-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+
+    .history-modal.show {
+      display: flex;
+    }
+
+    .history-content {
+      background: white;
+      padding: 40px;
+      border-radius: 12px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
       overflow-y: auto;
     }
 
-    .journal-history h3 {
-      font-size: 16px;
-      color: #1a1a1a;
-      margin-bottom: 16px;
+    .history-content h3 {
+      font-size: 18px;
+      color: #333;
+      margin-bottom: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
     .history-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+      margin-bottom: 24px;
     }
 
     .history-item {
-      padding: 12px 16px;
-      background: white;
-      border-radius: 6px;
+      padding: 16px;
+      background: #f9f9f9;
+      border-radius: 8px;
+      margin-bottom: 12px;
       cursor: pointer;
       transition: all 0.2s;
       border: 2px solid transparent;
     }
 
     .history-item:hover {
-      border-color: #667eea;
-      background: #f9fafb;
+      background: #f0f0f0;
+      border-color: #ddd;
     }
 
     .history-item.active {
-      border-color: #667eea;
-      background: #eef2ff;
+      background: #e8f4f8;
+      border-color: #4a9eff;
     }
 
     .history-date {
+      font-size: 14px;
       font-weight: 600;
-      color: #1a1a1a;
-      margin-bottom: 4px;
+      color: #333;
+      margin-bottom: 6px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
     .history-preview {
       font-size: 14px;
       color: #666;
-      white-space: nowrap;
+      font-family: Georgia, serif;
+      line-height: 1.6;
       overflow: hidden;
       text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .history-empty {
       text-align: center;
       color: #999;
+      padding: 40px;
       font-size: 14px;
-      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
-    .journal-prompts {
-      background: #f8f9fa;
-      border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 20px;
-    }
-
-    .journal-prompts h3 {
-      font-size: 14px;
-      color: #666;
-      margin-bottom: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .journal-prompts ul {
-      list-style: none;
-    }
-
-    .journal-prompts li {
-      font-size: 15px;
-      color: #1a1a1a;
-      margin-bottom: 8px;
-      padding-left: 20px;
-      position: relative;
-    }
-
-    .journal-prompts li::before {
-      content: '≠';
-      position: absolute;
-      left: 0;
-    }
-
-    .journal-textarea {
-      width: 100%;
-      min-height: 300px;
-      padding: 16px;
-      border: 2px solid #e0e0e0;
-      border-radius: 8px;
-      font-size: 16px;
-      font-family: inherit;
-      resize: vertical;
-      transition: border-color 0.2s;
-    }
-
-    .journal-textarea:focus {
-      outline: none;
-      border-color: #667eea;
-    }
-
-    .journal-actions {
-      margin-top: 20px;
-      display: flex;
-      gap: 12px;
-      justify-content: flex-end;
-    }
-
-    .journal-btn {
-      padding: 12px 24px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      border: none;
-      transition: all 0.2s;
-    }
-
-    .journal-btn-primary {
-      background: #667eea;
+    .history-close {
+      background: #333;
       color: white;
-    }
-
-    .journal-btn-primary:hover {
-      background: #5568d3;
-    }
-
-    .journal-btn-secondary {
-      background: #f0f0f0;
-      color: #1a1a1a;
-    }
-
-    .journal-btn-secondary:hover {
-      background: #e0e0e0;
-    }
-
-    .journal-saved {
-      display: none;
-      background: #d4edda;
-      color: #155724;
-      padding: 12px 16px;
-      border-radius: 8px;
-      margin-top: 16px;
-      font-size: 14px;
-    }
-
-    .journal-saved.show {
-      display: block;
-    }
-
-    /* Obsidian path reminder */
-    .obsidian-reminder {
-      background: #e8f5e9;
-      border: 2px solid #4caf50;
-      border-radius: 8px;
-      padding: 16px;
-      margin-top: 16px;
-    }
-
-    .obsidian-reminder-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-      font-weight: 600;
-      color: #2e7d32;
-    }
-
-    .obsidian-edit-btn {
-      background: transparent;
       border: none;
-      color: #2e7d32;
-      cursor: pointer;
-      font-size: 13px;
-      text-decoration: underline;
-    }
-
-    .obsidian-edit-btn:hover {
-      color: #1b5e20;
-    }
-
-    .obsidian-path {
-      font-family: 'Courier New', monospace;
-      font-size: 14px;
-      color: #1b5e20;
-      background: white;
-      padding: 8px 12px;
-      border-radius: 4px;
-      word-break: break-all;
-    }
-
-    /* Obsidian setup */
-    .obsidian-setup {
-      background: #fff3e0;
-      border: 2px dashed #ff9800;
-      border-radius: 8px;
-      padding: 16px;
-      margin-top: 16px;
-    }
-
-    .obsidian-setup-text {
-      margin-bottom: 12px;
-      color: #e65100;
-      font-size: 14px;
-    }
-
-    .obsidian-input-group {
-      display: flex;
-      gap: 8px;
-    }
-
-    .obsidian-input {
-      flex: 1;
-      padding: 10px 12px;
-      border: 2px solid #ffb74d;
+      padding: 10px 24px;
       border-radius: 6px;
       font-size: 14px;
-      font-family: 'Courier New', monospace;
+      cursor: pointer;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
-    .obsidian-input:focus {
-      outline: none;
-      border-color: #ff9800;
+    .history-close:hover {
+      background: #555;
     }
 
     /* Read-only message */
-    .journal-readonly-message {
-      background: #fff9c4;
-      border: 2px solid #fbc02d;
-      border-radius: 8px;
-      padding: 12px 16px;
-      margin-bottom: 12px;
-      color: #f57f17;
+    .readonly-badge {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: #fff3cd;
+      color: #856404;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: none;
+    }
+
+    .readonly-badge.show {
+      display: block;
+    }
+
+    /* Success message */
+    .success-message {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #d4edda;
+      color: #155724;
+      padding: 12px 24px;
+      border-radius: 6px;
       font-size: 14px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 3000;
+    }
+
+    .success-message.show {
+      opacity: 1;
     }
   </style>
 </head>
 <body>
-  <div class="journal-container">
-    <div class="journal-header">
-      <h1 class="journal-title">ù Journal</h1>
-      <p class="journal-subtitle">Take a moment to reflect on what you're feeling</p>
-      <button class="toggle-history-btn" id="toggle-history-btn">View History</button>
+  <!-- Main journal page -->
+  <div class="journal-page">
+    <!-- Readonly badge (hidden by default) -->
+    <div class="readonly-badge" id="readonly-badge">üìñ Past Entry (Read-only)</div>
+
+    <!-- Menu button -->
+    <button class="menu-button" id="menu-button">‚ãØ</button>
+
+    <!-- Menu dropdown -->
+    <div class="menu-dropdown" id="menu-dropdown">
+      <button class="menu-item" id="menu-history">üìÖ View Past Entries</button>
+      <button class="menu-item" id="menu-copy">üìã Copy to Clipboard</button>
+      <button class="menu-item" id="menu-export">üíæ Export as .txt</button>
+      <div class="menu-divider"></div>
+      <button class="menu-item" id="menu-clear">üóëÔ∏è Clear Entry</button>
     </div>
 
-    <div class="journal-history" id="journal-history" style="display: none;">
-      <h3>Past Entries</h3>
-      <div class="history-list" id="history-list">
-        <p class="history-empty">No past entries yet.</p>
-      </div>
-    </div>
+    <!-- Date -->
+    <div class="journal-date" id="journal-date">Today</div>
 
-    <div class="journal-prompts">
+    <!-- Textarea -->
+    <textarea
+      class="journal-textarea"
+      id="journal-text"
+      placeholder="Start writing..."
+      spellcheck="true"
+    ></textarea>
+
+    <!-- Prompts toggle -->
+    <a href="#" class="prompts-toggle" id="prompts-toggle">Need help getting started?</a>
+  </div>
+
+  <!-- Auto-save indicator -->
+  <div class="autosave-indicator" id="autosave-indicator">‚úì Saved</div>
+
+  <!-- Success message -->
+  <div class="success-message" id="success-message"></div>
+
+  <!-- Prompts modal -->
+  <div class="prompts-modal" id="prompts-modal">
+    <div class="prompts-content">
       <h3>Prompts to consider:</h3>
       <ul>
         <li>What are you feeling right now?</li>
@@ -335,35 +413,18 @@
         <li>What would you tell a friend in this situation?</li>
         <li>What are you afraid will happen?</li>
       </ul>
+      <button class="prompts-close" id="prompts-close">Close</button>
     </div>
+  </div>
 
-    <textarea class="journal-textarea" id="journal-text" placeholder="Start writing..."></textarea>
-
-    <div class="journal-actions">
-      <button class="journal-btn journal-btn-secondary" id="clear-btn">Clear</button>
-      <button class="journal-btn journal-btn-secondary" id="copy-btn">ã Copy</button>
-      <button class="journal-btn journal-btn-secondary" id="export-btn">æ Export</button>
-      <button class="journal-btn journal-btn-primary" id="save-btn">Save Entry</button>
-    </div>
-
-    <div class="journal-saved" id="saved-message">
-       Entry saved! Your thoughts are stored locally in your browser.
-    </div>
-
-    <div class="obsidian-reminder" id="obsidian-reminder" style="display: none;">
-      <div class="obsidian-reminder-header">
-        <span>Å Obsidian Vault</span>
-        <button class="obsidian-edit-btn" id="edit-path-btn">Edit</button>
+  <!-- History modal -->
+  <div class="history-modal" id="history-modal">
+    <div class="history-content">
+      <h3>Past Entries</h3>
+      <div class="history-list" id="history-list">
+        <p class="history-empty">No past entries yet.</p>
       </div>
-      <div class="obsidian-path" id="obsidian-path"></div>
-    </div>
-
-    <div class="obsidian-setup" id="obsidian-setup">
-      <p class="obsidian-setup-text">° <strong>Tip:</strong> Set your Obsidian vault path for quick access</p>
-      <div class="obsidian-input-group">
-        <input type="text" class="obsidian-input" id="path-input" placeholder="C:\path\to\obsidian\vault\journal">
-        <button class="journal-btn journal-btn-primary" id="save-path-btn">Save Path</button>
-      </div>
+      <button class="history-close" id="history-close">Close</button>
     </div>
   </div>
 

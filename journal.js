@@ -1,127 +1,200 @@
-// Journal page functionality
+// ========================================
+// JOURNAL - Clean & Simple
+// ========================================
 
+// DOM Elements
 const textarea = document.getElementById('journal-text');
-const saveBtn = document.getElementById('save-btn');
-const clearBtn = document.getElementById('clear-btn');
-const copyBtn = document.getElementById('copy-btn');
-const exportBtn = document.getElementById('export-btn');
-const savedMessage = document.getElementById('saved-message');
-const toggleHistoryBtn = document.getElementById('toggle-history-btn');
-const historySection = document.getElementById('journal-history');
+const journalDate = document.getElementById('journal-date');
+const menuButton = document.getElementById('menu-button');
+const menuDropdown = document.getElementById('menu-dropdown');
+const autosaveIndicator = document.getElementById('autosave-indicator');
+const successMessage = document.getElementById('success-message');
+const readonlyBadge = document.getElementById('readonly-badge');
+
+// Menu items
+const menuHistory = document.getElementById('menu-history');
+const menuCopy = document.getElementById('menu-copy');
+const menuExport = document.getElementById('menu-export');
+const menuClear = document.getElementById('menu-clear');
+
+// Prompts
+const promptsToggle = document.getElementById('prompts-toggle');
+const promptsModal = document.getElementById('prompts-modal');
+const promptsClose = document.getElementById('prompts-close');
+
+// History
+const historyModal = document.getElementById('history-modal');
 const historyList = document.getElementById('history-list');
-const obsidianReminder = document.getElementById('obsidian-reminder');
-const obsidianSetup = document.getElementById('obsidian-setup');
-const obsidianPath = document.getElementById('obsidian-path');
-const pathInput = document.getElementById('path-input');
-const savePathBtn = document.getElementById('save-path-btn');
-const editPathBtn = document.getElementById('edit-path-btn');
+const historyClose = document.getElementById('history-close');
 
-let currentDate = new Date().toISOString().split('T')[0]; // Track which entry we're viewing
+// Track current entry date
+let currentDate = new Date().toISOString().split('T')[0];
 
-// Load any existing journal entry for today
+// ========================================
+// INITIALIZATION
+// ========================================
+
+// Load today's entry and set date
 loadTodayEntry();
+updateDateDisplay();
 
-// Load history
-loadHistory();
+// ========================================
+// MENU DROPDOWN
+// ========================================
 
-// Load Obsidian path
-loadObsidianPath();
+menuButton.addEventListener('click', function(e) {
+  e.stopPropagation();
+  menuDropdown.classList.toggle('show');
+});
 
-// Save button
-saveBtn.addEventListener('click', function() {
-  const text = textarea.value.trim();
-
-  if (text) {
-    saveJournalEntry(text);
-    showSavedMessage();
+// Close menu when clicking outside
+document.addEventListener('click', function(e) {
+  if (!menuDropdown.contains(e.target) && e.target !== menuButton) {
+    menuDropdown.classList.remove('show');
   }
 });
 
-// Clear button
-clearBtn.addEventListener('click', function() {
-  if (confirm('Are you sure you want to clear this entry?')) {
-    textarea.value = '';
-    textarea.focus();
+// Close prompts modal when clicking outside
+promptsModal.addEventListener('click', function(e) {
+  if (e.target === promptsModal) {
+    promptsModal.classList.remove('show');
   }
 });
 
-// Copy to clipboard button
-copyBtn.addEventListener('click', async function() {
+// Close history modal when clicking outside
+historyModal.addEventListener('click', function(e) {
+  if (e.target === historyModal) {
+    historyModal.classList.remove('show');
+  }
+});
+
+// ========================================
+// MENU ACTIONS
+// ========================================
+
+// View History
+menuHistory.addEventListener('click', function() {
+  menuDropdown.classList.remove('show');
+  loadHistory();
+  historyModal.classList.add('show');
+});
+
+// Copy to Clipboard
+menuCopy.addEventListener('click', async function() {
+  menuDropdown.classList.remove('show');
+
   const text = textarea.value.trim();
 
   if (!text) {
-    alert('Nothing to copy! Write something first.');
+    showMessage('Nothing to copy! Write something first.', false);
     return;
   }
 
-  // Format content with date
-  const timeStr = new Date().toLocaleTimeString();
-  const formattedContent = `# Journal Entry - ${currentDate}
+  const timeStr = new Date().toLocaleString();
+  const formattedContent = `Journal Entry - ${formatDate(currentDate)}
 Created: ${timeStr}
 
 ${text}`;
 
   try {
     await navigator.clipboard.writeText(formattedContent);
-
-    // Show success feedback
-    const originalText = copyBtn.textContent;
-    copyBtn.textContent = ' Copied!';
-    copyBtn.style.background = '#4caf50';
-    copyBtn.style.color = 'white';
-
-    setTimeout(() => {
-      copyBtn.textContent = originalText;
-      copyBtn.style.background = '';
-      copyBtn.style.color = '';
-    }, 2000);
-
-    console.log('Journal copied to clipboard');
+    showMessage('📋 Copied to clipboard!', true);
   } catch (err) {
-    alert('Failed to copy to clipboard. Please try again.');
+    showMessage('Failed to copy to clipboard', false);
     console.error('Copy failed:', err);
   }
 });
 
-// Export button
-exportBtn.addEventListener('click', function() {
+// Export as .txt
+menuExport.addEventListener('click', function() {
+  menuDropdown.classList.remove('show');
+
   const text = textarea.value.trim();
 
   if (!text) {
-    alert('Nothing to export! Write something first.');
+    showMessage('Nothing to export! Write something first.', false);
     return;
   }
 
-  // Create formatted content with date and time
-  const timeStr = new Date().toLocaleTimeString(); // Local time
-
-  const formattedContent = `# Journal Entry - ${currentDate}
+  const timeStr = new Date().toLocaleString();
+  const formattedContent = `Journal Entry - ${formatDate(currentDate)}
 Created: ${timeStr}
 
-${text}
-`;
+${text}`;
 
-  // Create blob and download link
   const blob = new Blob([formattedContent], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = `journal-${currentDate}.txt`;
 
-  // Trigger download
   document.body.appendChild(a);
   a.click();
-
-  // Cleanup
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 
-  console.log('Journal exported as:', a.download);
+  showMessage('💾 Exported successfully!', true);
 });
 
-// Load today's entry if it exists
+// Clear Entry
+menuClear.addEventListener('click', function() {
+  menuDropdown.classList.remove('show');
+
+  if (textarea.hasAttribute('readonly')) {
+    showMessage('Cannot clear a past entry', false);
+    return;
+  }
+
+  if (confirm('Are you sure you want to clear this entry?')) {
+    textarea.value = '';
+    textarea.focus();
+  }
+});
+
+// ========================================
+// PROMPTS MODAL
+// ========================================
+
+promptsToggle.addEventListener('click', function(e) {
+  e.preventDefault();
+  promptsModal.classList.add('show');
+});
+
+promptsClose.addEventListener('click', function() {
+  promptsModal.classList.remove('show');
+});
+
+// ========================================
+// HISTORY MODAL
+// ========================================
+
+historyClose.addEventListener('click', function() {
+  historyModal.classList.remove('show');
+});
+
+// ========================================
+// AUTO-SAVE
+// ========================================
+
+// Auto-save every 10 seconds
+setInterval(function() {
+  const text = textarea.value.trim();
+
+  // Only auto-save if not read-only and has content
+  if (!textarea.hasAttribute('readonly') && text) {
+    saveJournalEntry(text, true); // true = silent save
+  }
+}, 10000);
+
+// ========================================
+// CORE FUNCTIONS
+// ========================================
+
+// Load today's entry
 function loadTodayEntry() {
   const today = new Date().toISOString().split('T')[0];
+  currentDate = today;
+
   chrome.storage.local.get(['journal_entries'], function(result) {
     const entries = result.journal_entries || {};
 
@@ -132,46 +205,24 @@ function loadTodayEntry() {
 }
 
 // Save journal entry
-function saveJournalEntry(text) {
+function saveJournalEntry(text, silent = false) {
   chrome.storage.local.get(['journal_entries'], function(result) {
     const entries = result.journal_entries || {};
     entries[currentDate] = text;
 
     chrome.storage.local.set({ journal_entries: entries }, function() {
-      console.log('Journal entry saved for', currentDate);
-      loadHistory(); // Refresh history to show updated preview
+      if (!silent) {
+        showMessage('✓ Entry saved!', true);
+      } else {
+        // Show subtle auto-save indicator
+        autosaveIndicator.classList.add('show');
+        setTimeout(() => {
+          autosaveIndicator.classList.remove('show');
+        }, 2000);
+      }
     });
   });
 }
-
-// Show saved message
-function showSavedMessage() {
-  savedMessage.classList.add('show');
-
-  setTimeout(function() {
-    savedMessage.classList.remove('show');
-  }, 3000);
-}
-
-// Auto-save every 10 seconds
-setInterval(function() {
-  const text = textarea.value.trim();
-  if (text) {
-    saveJournalEntry(text);
-  }
-}, 10000);
-
-// Toggle history visibility
-toggleHistoryBtn.addEventListener('click', function() {
-  if (historySection.style.display === 'none') {
-    historySection.style.display = 'block';
-    toggleHistoryBtn.textContent = 'Hide History';
-    loadHistory(); // Refresh history when showing
-  } else {
-    historySection.style.display = 'none';
-    toggleHistoryBtn.textContent = 'View History';
-  }
-});
 
 // Load and display history
 function loadHistory() {
@@ -180,14 +231,13 @@ function loadHistory() {
     const dates = Object.keys(entries).sort().reverse(); // Most recent first
 
     if (dates.length === 0) {
-      historyList.innerHTML = '<p class="history-empty">No past entries yet.</p>';
+      historyList.innerHTML = '<p class="history-empty">No past entries yet. Start writing!</p>';
       return;
     }
 
-    // Build history HTML
     historyList.innerHTML = dates.map(date => {
       const text = entries[date];
-      const preview = text.substring(0, 80) + (text.length > 80 ? '...' : '');
+      const preview = text.substring(0, 100) + (text.length > 100 ? '...' : '');
       const isActive = date === currentDate ? 'active' : '';
 
       return `
@@ -198,17 +248,18 @@ function loadHistory() {
       `;
     }).join('');
 
-    // Add click handlers to history items
+    // Add click handlers
     document.querySelectorAll('.history-item').forEach(item => {
       item.addEventListener('click', function() {
         const date = this.getAttribute('data-date');
         loadEntryByDate(date);
+        historyModal.classList.remove('show');
       });
     });
   });
 }
 
-// Load a specific entry by date
+// Load specific entry by date
 function loadEntryByDate(date) {
   chrome.storage.local.get(['journal_entries'], function(result) {
     const entries = result.journal_entries || {};
@@ -216,89 +267,40 @@ function loadEntryByDate(date) {
     if (entries[date]) {
       currentDate = date;
       textarea.value = entries[date];
+      updateDateDisplay();
 
-      // Check if this is today's entry or a past entry
+      // Check if this is a past entry
       const today = new Date().toISOString().split('T')[0];
       const isPastEntry = date !== today;
 
-      // Set read-only state for past entries
-      updateReadOnlyState(isPastEntry);
-
-      // Update active state in history
-      document.querySelectorAll('.history-item').forEach(item => {
-        item.classList.remove('active');
-        if (item.getAttribute('data-date') === date) {
-          item.classList.add('active');
-        }
-      });
+      setReadOnlyState(isPastEntry);
     }
   });
 }
 
-// Update read-only state
-function updateReadOnlyState(isReadOnly) {
+// Set read-only state
+function setReadOnlyState(isReadOnly) {
   if (isReadOnly) {
-    // Make textarea read-only
     textarea.setAttribute('readonly', 'readonly');
-    textarea.style.background = '#f5f5f5';
+    textarea.style.background = '#fafafa';
     textarea.style.cursor = 'default';
-
-    // Disable Save and Clear buttons
-    saveBtn.disabled = true;
-    saveBtn.style.opacity = '0.5';
-    saveBtn.style.cursor = 'not-allowed';
-
-    clearBtn.disabled = true;
-    clearBtn.style.opacity = '0.5';
-    clearBtn.style.cursor = 'not-allowed';
-
-    // Show read-only message
-    showReadOnlyMessage();
+    readonlyBadge.classList.add('show');
   } else {
-    // Make textarea editable
     textarea.removeAttribute('readonly');
     textarea.style.background = '';
     textarea.style.cursor = '';
-
-    // Enable Save and Clear buttons
-    saveBtn.disabled = false;
-    saveBtn.style.opacity = '';
-    saveBtn.style.cursor = '';
-
-    clearBtn.disabled = false;
-    clearBtn.style.opacity = '';
-    clearBtn.style.cursor = '';
-
-    // Hide read-only message
-    hideReadOnlyMessage();
+    readonlyBadge.classList.remove('show');
   }
 }
 
-// Show read-only message
-function showReadOnlyMessage() {
-  // Create message if it doesn't exist
-  let message = document.getElementById('readonly-message');
-  if (!message) {
-    message = document.createElement('div');
-    message.id = 'readonly-message';
-    message.className = 'journal-readonly-message';
-    message.innerHTML = '� <strong>Past Entry</strong> - This entry is read-only. Only today\'s entry can be edited.';
-    textarea.parentNode.insertBefore(message, textarea);
-  }
-  message.style.display = 'block';
-}
-
-// Hide read-only message
-function hideReadOnlyMessage() {
-  const message = document.getElementById('readonly-message');
-  if (message) {
-    message.style.display = 'none';
-  }
+// Update date display
+function updateDateDisplay() {
+  journalDate.textContent = formatDate(currentDate);
 }
 
 // Format date nicely
 function formatDate(dateStr) {
-  const date = new Date(dateStr + 'T00:00:00'); // Add time to avoid timezone issues
+  const date = new Date(dateStr + 'T00:00:00');
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
@@ -307,51 +309,25 @@ function formatDate(dateStr) {
   const yesterdayStr = yesterday.toISOString().split('T')[0];
 
   if (dateStr === todayStr) {
-    return 'Today - ' + dateStr;
+    return 'Today, ' + dateStr;
   } else if (dateStr === yesterdayStr) {
-    return 'Yesterday - ' + dateStr;
+    return 'Yesterday, ' + dateStr;
   } else {
     return dateStr;
   }
 }
 
-// Obsidian path management
-function loadObsidianPath() {
-  chrome.storage.local.get(['obsidian_vault_path'], function(result) {
-    if (result.obsidian_vault_path) {
-      // Show the reminder with the saved path
-      obsidianPath.textContent = result.obsidian_vault_path;
-      obsidianReminder.style.display = 'block';
-      obsidianSetup.style.display = 'none';
-    } else {
-      // Show the setup input
-      obsidianReminder.style.display = 'none';
-      obsidianSetup.style.display = 'block';
-    }
-  });
+// Show success/error message
+function showMessage(text, isSuccess) {
+  successMessage.textContent = text;
+  successMessage.style.background = isSuccess ? '#d4edda' : '#f8d7da';
+  successMessage.style.color = isSuccess ? '#155724' : '#721c24';
+  successMessage.classList.add('show');
+
+  setTimeout(() => {
+    successMessage.classList.remove('show');
+  }, 3000);
 }
 
-// Save Obsidian path
-savePathBtn.addEventListener('click', function() {
-  const path = pathInput.value.trim();
-
-  if (!path) {
-    alert('Please enter a path to your Obsidian vault');
-    return;
-  }
-
-  chrome.storage.local.set({ obsidian_vault_path: path }, function() {
-    console.log('Obsidian path saved:', path);
-    loadObsidianPath(); // Refresh display
-  });
-});
-
-// Edit path button
-editPathBtn.addEventListener('click', function() {
-  chrome.storage.local.get(['obsidian_vault_path'], function(result) {
-    pathInput.value = result.obsidian_vault_path || '';
-    obsidianReminder.style.display = 'none';
-    obsidianSetup.style.display = 'block';
-    pathInput.focus();
-  });
-});
+// Auto-focus textarea on load
+textarea.focus();
