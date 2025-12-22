@@ -37,7 +37,7 @@ async function getStrikes() {
 async function saveStrikes(strikes) {
   return new Promise((resolve) => {
     chrome.storage.local.set({ [STRIKE_STORAGE_KEY]: strikes }, function() {
-      console.log('æ Strikes saved:', strikes);
+      console.log('ÔøΩ Strikes saved:', strikes);
       resolve();
     });
   });
@@ -78,7 +78,7 @@ function containsRelationshipKeywords(message) {
 
   for (let keyword of relationshipKeywords) {
     if (lowerMessage.includes(keyword.toLowerCase())) {
-      console.log('® Detected relationship keyword:', keyword);
+      console.log('ÔøΩ Detected relationship keyword:', keyword);
       return true;
     }
   }
@@ -131,7 +131,7 @@ function showWarningModal(message, strikeLevel) {
     delaySeconds = 10;
   } else {
     // Strike 3 - Hard block
-    icon = 'ë';
+    icon = 'ÔøΩ';
     title = 'Daily Limit Reached';
     messageText = `
       You've reached your limit for relationship discussions today.
@@ -152,10 +152,10 @@ function showWarningModal(message, strikeLevel) {
     alternativeActionsHTML = `
     <div class="guardrails-alternatives">
       <button class="guardrails-alt-btn" id="guardrails-journal">
-        ù Journal Instead
+        ÔøΩ Journal Instead
       </button>
       <button class="guardrails-alt-btn" id="guardrails-talk">
-        ¨ Talk to Someone
+        ÔøΩ Talk to Someone
       </button>
       <button class="guardrails-alt-btn" id="guardrails-wait">
          Wait 24 Hours
@@ -168,10 +168,10 @@ function showWarningModal(message, strikeLevel) {
     alternativeActionsHTML = `
     <div class="guardrails-alternatives">
       <button class="guardrails-alt-btn" id="guardrails-journal">
-        ù Journal Instead
+        ÔøΩ Journal Instead
       </button>
       <button class="guardrails-alt-btn" id="guardrails-talk">
-        ¨ Talk to Someone
+        ÔøΩ Talk to Someone
       </button>
     </div>
   `;
@@ -276,7 +276,7 @@ function showWarningModal(message, strikeLevel) {
 
 // Alternative Action: Open Journal Page
 function openJournalPage(message) {
-  console.log('ù Opening journal page...');
+  console.log('ÔøΩ Opening journal page...');
   // Open journal in new tab
   const journalUrl = chrome.runtime.getURL('journal.html');
   window.open(journalUrl, '_blank');
@@ -284,7 +284,7 @@ function openJournalPage(message) {
 
 // Alternative Action: Show "Talk to Someone" message
 function showTalkToSomeoneMessage() {
-  console.log('¨ User chose to talk to someone');
+  console.log('ÔøΩ User chose to talk to someone');
 
   // Create a simple overlay with encouragement
   const overlay = document.createElement('div');
@@ -292,7 +292,7 @@ function showTalkToSomeoneMessage() {
   overlay.innerHTML = `
     <div class="guardrails-modal">
       <div class="guardrails-modal-header">
-        <span class="guardrails-modal-icon">¨</span>
+        <span class="guardrails-modal-icon">ÔøΩ</span>
         <h2 class="guardrails-modal-title">Great Choice!</h2>
       </div>
       <div class="guardrails-modal-message">
@@ -414,7 +414,7 @@ async function checkAndIntercept(event) {
 
     // Check if message contains relationship keywords
     if (containsRelationshipKeywords(message)) {
-      console.log('ù Intercepted relationship message:', message);
+      console.log('ÔøΩ Intercepted relationship message:', message);
 
       // Stop the message from sending
       event.preventDefault();
@@ -424,14 +424,14 @@ async function checkAndIntercept(event) {
       // Check if there's an active 24-hour block
       const blockUntil = await chrome.storage.local.get(['relationship_block_until']);
       if (blockUntil.relationship_block_until && Date.now() < blockUntil.relationship_block_until) {
-        console.log('´ 24-hour block is active');
+        console.log('ÔøΩ 24-hour block is active');
         showBlockedMessage(blockUntil.relationship_block_until);
         return false;
       }
 
       // Get current strike count and increment
       const strikeCount = await incrementStrike('relationships');
-      console.log(`® Strike ${strikeCount} triggered`);
+      console.log(`ÔøΩ Strike ${strikeCount} triggered`);
 
       // Show the modal with appropriate strike level
       showWarningModal(message, strikeCount);
@@ -532,7 +532,7 @@ function startWatching() {
     subtree: true
   });
 
-  console.log('Ä Watching for send button and textarea...');
+  console.log('ÔøΩ Watching for send button and textarea...');
 }
 
 // Start when page is ready
