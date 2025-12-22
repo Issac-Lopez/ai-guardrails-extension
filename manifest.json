@@ -10,7 +10,11 @@
 
   "content_scripts": [
     {
-      "matches": ["https://chat.openai.com/*", "https://chatgpt.com/*"],
+      "matches": [
+        "https://chat.openai.com/*",
+        "https://chatgpt.com/*",
+        "https://claude.ai/*"
+      ],
       "js": ["content.js"],
       "css": ["modal.css"],
       "run_at": "document_end"
@@ -20,7 +24,11 @@
   "web_accessible_resources": [
     {
       "resources": ["journal.html", "journal.js"],
-      "matches": ["https://chat.openai.com/*", "https://chatgpt.com/*"]
+      "matches": [
+        "https://chat.openai.com/*",
+        "https://chatgpt.com/*",
+        "https://claude.ai/*"
+      ]
     }
   ]
 }

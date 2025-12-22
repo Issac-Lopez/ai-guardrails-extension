@@ -1,7 +1,21 @@
 // AI Guardrails - Content Script
-// This script runs on chat.openai.com and chatgpt.com
+// This script runs on chat.openai.com, chatgpt.com, and claude.ai
 
 console.log('AI Guardrails extension loaded!');
+
+// Platform detection
+function detectPlatform() {
+  const hostname = window.location.hostname;
+  if (hostname.includes('claude.ai')) {
+    return 'claude';
+  } else if (hostname.includes('openai.com') || hostname.includes('chatgpt.com')) {
+    return 'chatgpt';
+  }
+  return 'unknown';
+}
+
+const PLATFORM = detectPlatform();
+console.log('Detected platform:', PLATFORM);
 
 // Store the original message to restore if user cancels
 let interceptedMessage = null;
@@ -88,11 +102,27 @@ function containsRelationshipKeywords(message) {
 
 // Function to get the current message from the textarea
 function getCurrentMessage() {
-  // ChatGPT uses a contenteditable div for the text input
-  const textarea = document.querySelector('div[contenteditable="true"]');
-  if (textarea) {
-    return textarea.textContent || textarea.innerText || '';
+  // Try multiple selectors for different platforms
+  const selectors = [
+    'div[contenteditable="true"]',  // ChatGPT and Claude.ai both use this
+    'textarea[placeholder*="Message"]',  // Fallback for textarea
+    'textarea',  // Generic textarea fallback
+    '.ProseMirror'  // Some versions of Claude use ProseMirror editor
+  ];
+
+  for (const selector of selectors) {
+    const element = document.querySelector(selector);
+    if (element) {
+      // Try different ways to get the text content
+      const text = element.textContent || element.innerText || element.value || '';
+      if (text.trim()) {
+        return text;
+      }
+      // Even if empty, return the element's content (might be empty message being sent)
+      return text;
+    }
   }
+
   return '';
 }
 
@@ -163,8 +193,8 @@ function showWarningModal(message, strikeLevel) {
     </div>
     <div class="guardrails-divider">or</div>
   `;
-  } else if (strikeLevel === 3) {
-    // Strike 3: Only show journal and talk (no "Wait 24 Hours" since already blocked)
+  } else {
+    // Strike 3+: Only show journal and talk (no "Wait 24 Hours" since already blocked)
     alternativeActionsHTML = `
     <div class="guardrails-alternatives">
       <button class="guardrails-alt-btn" id="guardrails-journal">
@@ -241,7 +271,7 @@ function showWarningModal(message, strikeLevel) {
   });
 
   // Handle alternative action buttons (for all strike levels)
-  if (strikeLevel === 1 || strikeLevel === 2 || strikeLevel === 3) {
+  if (strikeLevel >= 1) {
     // Journal Instead button
     const journalBtn = overlay.querySelector('#guardrails-journal');
     if (journalBtn) {
@@ -479,43 +509,67 @@ function showBlockedMessage(blockUntil) {
 
 // Function to intercept the send button click
 function interceptSendButton() {
-  // Find the send button (it's usually the last button in the prompt area)
-  const sendButton = document.querySelector('button[data-testid="send-button"]');
+  // Try multiple selectors for different platforms
+  const selectors = [
+    'button[data-testid="send-button"]',  // ChatGPT
+    'button[aria-label*="Send"]',  // Claude.ai (aria-label contains "Send")
+    'button[aria-label*="send"]',  // Case variation
+    'button:has(svg)',  // Button containing SVG icon (common pattern)
+    'form button[type="submit"]'  // Generic submit button in form
+  ];
 
-  if (sendButton && !sendButton.hasAttribute('data-guardrails-attached')) {
-    console.log(' Found send button, attaching interceptor...');
+  for (const selector of selectors) {
+    const sendButtons = document.querySelectorAll(selector);
 
-    // Mark this button as already processed
-    sendButton.setAttribute('data-guardrails-attached', 'true');
+    sendButtons.forEach(sendButton => {
+      if (sendButton && !sendButton.hasAttribute('data-guardrails-attached')) {
+        console.log('Found send button, attaching interceptor...', selector);
 
-    // Intercept clicks on the send button - try multiple event types
-    ['click', 'mousedown', 'pointerdown'].forEach(eventType => {
-      sendButton.addEventListener(eventType, checkAndIntercept, true);
+        // Mark this button as already processed
+        sendButton.setAttribute('data-guardrails-attached', 'true');
+
+        // Intercept clicks on the send button - try multiple event types
+        ['click', 'mousedown', 'pointerdown'].forEach(eventType => {
+          sendButton.addEventListener(eventType, checkAndIntercept, true);
+        });
+      }
     });
   }
 }
 
 // Function to intercept Enter key on textarea
 function interceptTextarea() {
-  const textarea = document.querySelector('div[contenteditable="true"]');
+  // Try multiple selectors for different platforms
+  const selectors = [
+    'div[contenteditable="true"]',  // ChatGPT and Claude.ai
+    'textarea[placeholder*="Message"]',  // Fallback for textarea
+    'textarea',  // Generic textarea
+    '.ProseMirror'  // Some versions use ProseMirror editor
+  ];
 
-  if (textarea && !textarea.hasAttribute('data-guardrails-attached')) {
-    console.log(' Found textarea, attaching Enter key interceptor...');
+  for (const selector of selectors) {
+    const textareas = document.querySelectorAll(selector);
 
-    // Mark this textarea as already processed
-    textarea.setAttribute('data-guardrails-attached', 'true');
+    textareas.forEach(textarea => {
+      if (textarea && !textarea.hasAttribute('data-guardrails-attached')) {
+        console.log('✅ Found textarea, attaching Enter key interceptor...', selector);
 
-    // Intercept Enter key (without Shift)
-    textarea.addEventListener('keydown', function(event) {
-      // Enter key without Shift sends the message
-      if (event.key === 'Enter' && !event.shiftKey) {
-        checkAndIntercept(event);
+        // Mark this textarea as already processed
+        textarea.setAttribute('data-guardrails-attached', 'true');
+
+        // Intercept Enter key (without Shift)
+        textarea.addEventListener('keydown', function(event) {
+          // Enter key without Shift sends the message
+          if (event.key === 'Enter' && !event.shiftKey) {
+            checkAndIntercept(event);
+          }
+        }, true);
       }
-    }, true);
+    });
   }
 }
 
-// Watch for the send button to appear (ChatGPT loads dynamically)
+// Watch for the send button to appear (both ChatGPT and Claude.ai load dynamically)
 function startWatching() {
   // Try to attach immediately
   interceptSendButton();
