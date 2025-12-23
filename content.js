@@ -743,6 +743,15 @@ function sendMessageToChat(message) {
 
 // Main interception function - checks all enabled categories
 async function checkAndIntercept(event) {
+  // FIRST: Check if this is a bypass (before preventing default)
+  const sendButton = document.querySelector('button[data-testid="send-button"]');
+  if (sendButton && sendButton.hasAttribute('data-guardrails-bypass')) {
+    console.log('✅ Bypassing guardrails (user clicked continue)');
+    sendButton.removeAttribute('data-guardrails-bypass');
+    // Let the event proceed naturally
+    return;
+  }
+
   // CRITICAL: Prevent default IMMEDIATELY before any async operations
   // This ensures the click doesn't proceed while we're doing async checks
   event.preventDefault();
@@ -758,13 +767,6 @@ async function checkAndIntercept(event) {
   const message = getCurrentMessage();
 
   if (message.trim()) {
-    // Check if this is a bypass click (user clicked continue)
-    const sendButton = document.querySelector('button[data-testid="send-button"]');
-    if (sendButton && sendButton.hasAttribute('data-guardrails-bypass')) {
-      console.log('✅ Bypassing guardrails (user clicked continue)');
-      // This is a bypass, so we already let it through (preventDefault was called but we'll send it via sendMessageToChat)
-      return;
-    }
 
     // Get enabled categories from settings
     const enabledCategories = await getEnabledCategories();
@@ -873,11 +875,6 @@ function interceptTextarea() {
         textarea.addEventListener('keydown', async function(event) {
           // Only intercept Enter key (without Shift, which creates new line)
           if (event.key === 'Enter' && !event.shiftKey) {
-            // Always prevent default first, then decide if we should allow it
-            event.preventDefault();
-            event.stopPropagation();
-            event.stopImmediatePropagation();
-
             const message = getCurrentMessage();
 
             if (!message.trim()) {
@@ -885,16 +882,22 @@ function interceptTextarea() {
               return;
             }
 
-            // Check if this is a bypass (user clicked continue)
+            // FIRST: Check if this is a bypass (before preventing default)
             const sendButton = document.querySelector('button[data-testid="send-button"]') ||
                              document.querySelector('button[aria-label*="Send"]') ||
                              document.querySelector('button[aria-label*="send"]');
 
             if (sendButton && sendButton.hasAttribute('data-guardrails-bypass')) {
-              console.log('✅ Bypassing guardrails (user clicked continue)');
-              sendMessageToChat(message);
+              console.log('✅ Bypassing guardrails (Enter key, user clicked continue)');
+              sendButton.removeAttribute('data-guardrails-bypass');
+              // Let Enter key proceed naturally
               return;
             }
+
+            // Now prevent default for non-bypass Enter presses
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
 
             // Get enabled categories from settings
             const enabledCategories = await getEnabledCategories();
