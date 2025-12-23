@@ -699,24 +699,21 @@ async function checkAndIntercept(event) {
 function interceptSendButton() {
   const selectors = [
     'button[data-testid="send-button"]',  // ChatGPT
-    'button[aria-label*="Send"]',  // Claude.ai
-    'button[aria-label*="send"]',  // Case variation
-    'button:has(svg)',  // Button containing SVG icon
-    'form button[type="submit"]'  // Generic submit button
+    'button[aria-label*="Send"]',  // Claude.ai (case sensitive)
+    'button[aria-label*="send"]'   // Claude.ai (case variation)
   ];
 
   for (const selector of selectors) {
     const sendButtons = document.querySelectorAll(selector);
 
     sendButtons.forEach(sendButton => {
-      if (sendButton && !sendButton.hasAttribute('data-guardrails-attached')) {
+      if (sendButton && !sendButton.hasAttribute('data-guardrails-click-attached')) {
         console.log('✅ Found send button, attaching interceptor...', selector);
 
-        sendButton.setAttribute('data-guardrails-attached', 'true');
+        sendButton.setAttribute('data-guardrails-click-attached', 'true');
 
-        ['click', 'mousedown', 'pointerdown'].forEach(eventType => {
-          sendButton.addEventListener(eventType, checkAndIntercept, true);
-        });
+        // Only use 'click' event to avoid multiple triggers
+        sendButton.addEventListener('click', checkAndIntercept, true);
       }
     });
   }
@@ -735,14 +732,64 @@ function interceptTextarea() {
     const textareas = document.querySelectorAll(selector);
 
     textareas.forEach(textarea => {
-      if (textarea && !textarea.hasAttribute('data-guardrails-attached')) {
+      if (textarea && !textarea.hasAttribute('data-guardrails-keydown-attached')) {
         console.log('✅ Found textarea, attaching Enter key interceptor...', selector);
 
-        textarea.setAttribute('data-guardrails-attached', 'true');
+        textarea.setAttribute('data-guardrails-keydown-attached', 'true');
 
-        textarea.addEventListener('keydown', function(event) {
+        textarea.addEventListener('keydown', async function(event) {
+          // Only intercept Enter key (without Shift, which creates new line)
           if (event.key === 'Enter' && !event.shiftKey) {
-            checkAndIntercept(event);
+            // Always prevent default first, then decide if we should allow it
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+
+            const message = getCurrentMessage();
+
+            if (!message.trim()) {
+              // Empty message, don't do anything
+              return;
+            }
+
+            // Check if this is a bypass (user clicked continue)
+            const sendButton = document.querySelector('button[data-testid="send-button"]') ||
+                             document.querySelector('button[aria-label*="Send"]') ||
+                             document.querySelector('button[aria-label*="send"]');
+
+            if (sendButton && sendButton.hasAttribute('data-guardrails-bypass')) {
+              console.log('✅ Bypassing guardrails (user clicked continue)');
+              sendMessageToChat(message);
+              return;
+            }
+
+            // Detect which category (if any) is triggered
+            const triggeredCategory = detectTriggeredCategory(message);
+
+            if (triggeredCategory) {
+              console.log(`🚨 Intercepted ${triggeredCategory.id} message via Enter key:`, message);
+
+              // Check if there's an active 24-hour block for this category
+              const blockData = await chrome.storage.local.get([triggeredCategory.blockKey]);
+              const blockUntil = blockData[triggeredCategory.blockKey];
+
+              if (blockUntil && Date.now() < blockUntil) {
+                console.log(`🛑 24-hour block is active for ${triggeredCategory.id}`);
+                showBlockedMessage(triggeredCategory, blockUntil);
+                return;
+              }
+
+              // Get current strike count and increment
+              const strikeCount = await incrementStrike(triggeredCategory.id);
+              console.log(`⚠️ Strike ${strikeCount} triggered for ${triggeredCategory.id}`);
+
+              // Show the modal with appropriate strike level
+              showWarningModal(message, triggeredCategory, strikeCount);
+            } else {
+              // No keywords detected - send the message
+              console.log('✅ Message allowed (no keywords detected) - sending via Enter');
+              sendMessageToChat(message);
+            }
           }
         }, true);
       }
