@@ -45,6 +45,13 @@
       color: #666;
     }
 
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+    }
+
     /* Section */
     .section {
       background: white;
@@ -335,8 +342,13 @@
   <div class="container">
     <!-- Header -->
     <div class="header">
-      <h1>⚙️ AI Guardrails Settings</h1>
-      <p>Manage your guardrails and view your usage patterns</p>
+      <div class="header-content">
+        <div>
+          <h1>⚙️ AI Guardrails Settings</h1>
+          <p>Manage your guardrails and view your usage patterns</p>
+        </div>
+        <!-- <button class="btn btn-secondary" id="feedback-btn">💬 Send Feedback</button> -->
+      </div>
     </div>
 
     <!-- Guardrail Categories Section -->

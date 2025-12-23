@@ -25,22 +25,14 @@ const GUARDRAIL_CATEGORIES = {
     icon: '👨‍👩‍👧',
     description: 'Family conflicts, parenting decisions'
   },
-  health: {
-    id: 'health',
-    name: 'Health Decisions',
-    namePlural: 'health',
-    icon: '🏥',
-    description: 'Medical questions, mental health (coming soon)',
+  comingsoon: {
+    id: 'comingsoon',
+    name: 'More Categories Coming Soon!',
+    namePlural: 'coming soon',
+    icon: '💭',
+    description: '',
     disabled: true
   },
-  financial: {
-    id: 'financial',
-    name: 'Financial Decisions',
-    namePlural: 'financial',
-    icon: '💰',
-    description: 'Major purchases, investment advice (coming soon)',
-    disabled: true
-  }
 };
 
 const DEFAULT_ENABLED_CATEGORIES = ['relationships', 'work', 'family'];
@@ -52,6 +44,7 @@ const categoryList = document.getElementById('category-list');
 const saveSettingsBtn = document.getElementById('save-settings');
 const resetSettingsBtn = document.getElementById('reset-settings');
 const clearDataBtn = document.getElementById('clear-data');
+const feedbackBtn = document.getElementById('feedback-btn');
 const successToast = document.getElementById('success-toast');
 const totalInterventions = document.getElementById('total-interventions');
 const journalUses = document.getElementById('journal-uses');
@@ -273,6 +266,13 @@ function attachEventListeners() {
 
   // Reset settings button
   resetSettingsBtn.addEventListener('click', resetSettings);
+
+  // Feedback button
+  // feedbackBtn.addEventListener('click', function() {
+  //   const subject = encodeURIComponent('AI Guardrails Feedback');
+  //   const body = encodeURIComponent('Hi! I have feedback about the AI Guardrails extension:\n\n');
+  //   window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
+  // });
 
   // Clear data button
   clearDataBtn.addEventListener('click', function() {

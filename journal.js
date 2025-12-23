@@ -14,6 +14,8 @@ const infoAlert = document.getElementById('info-alert');
 const alertClose = document.getElementById('alert-close');
 
 // Menu items
+const menuSettings = document.getElementById('menu-settings');
+// const menuFeedback = document.getElementById('menu-feedback');
 const menuHistory = document.getElementById('menu-history');
 const menuCopy = document.getElementById('menu-copy');
 const menuExport = document.getElementById('menu-export');
@@ -26,8 +28,9 @@ const fullscreenHint = document.getElementById('fullscreen-hint');
 // Prompts
 const promptsToggle = document.getElementById('prompts-toggle');
 const promptsModal = document.getElementById('prompts-modal');
-const promptsClose = document.getElementById('prompts-close');
 const promptQuestion = document.getElementById('prompt-question');
+const promptsDifferent = document.getElementById('prompts-different');
+const promptsClose = document.getElementById('prompts-close');
 
 // History
 const historyModal = document.getElementById('history-modal');
@@ -46,19 +49,43 @@ const questionPrompt = "Do you want help getting started?";
 const CATEGORY_PROMPTS = {
   relationships: {
     toggle: questionPrompt,
-    modal: "What are you really looking for from this relationship right now?"
+    prompts: [
+      "What are you really looking for from this relationship right now?",
+      "What would it look like if this situation resolved in the best possible way?",
+      "What patterns from past relationships might be showing up here?",
+      "If your future self could give you advice right now, what would they say?",
+      "What are you afraid will happen if you have this conversation?"
+    ]
   },
   work: {
     toggle: questionPrompt,
-    modal: "What aspects of this work situation are within your control?"
+    prompts: [
+      "What aspects of this work situation are within your control?",
+      "What would need to change for you to feel fulfilled at work?",
+      "What are you learning about yourself through this challenge?",
+      "If money wasn't a factor, what would you do differently?",
+      "What boundary do you need to set to protect your wellbeing?"
+    ]
   },
   family: {
     toggle: questionPrompt,
-    modal: "What would help you feel more understood in this family dynamic?"
+    prompts: [
+      "What would help you feel more understood in this family dynamic?",
+      "What role have you been playing in this family, and is it still serving you?",
+      "What would you say if you knew they would truly listen?",
+      "What patterns are repeating from your childhood?",
+      "What do you need to forgive yourself for in this situation?"
+    ]
   },
   default: {
     toggle: questionPrompt,
-    modal: "What are you feeling right now?"
+    prompts: [
+      "What are you feeling right now, without judging it?",
+      "What's taking up the most mental space for you today?",
+      "What do you need to hear right now?",
+      "What would make today feel meaningful?",
+      "What are you grateful for in this moment?"
+    ]
   }
 };
 
@@ -77,7 +104,13 @@ const categoryPrompt = CATEGORY_PROMPTS[triggeredCategory] || CATEGORY_PROMPTS.d
 
 // Set category-specific prompts
 promptsToggle.textContent = categoryPrompt.toggle;
-promptQuestion.textContent = categoryPrompt.modal;
+
+// Track which prompts have been shown
+let shownPrompts = [];
+let currentPromptIndex = -1;
+
+// Show initial random prompt
+showRandomPrompt();
 
 // Load today's entry and set date
 loadTodayEntry();
@@ -121,6 +154,14 @@ historyModal.addEventListener('click', function(e) {
   }
 });
 
+// Close modals with Esc key
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    promptsModal.classList.remove('show');
+    historyModal.classList.remove('show');
+  }
+});
+
 // ========================================
 // MENU ACTIONS
 // ========================================
@@ -129,6 +170,21 @@ historyModal.addEventListener('click', function(e) {
 fullscreenButton.addEventListener('click', function() {
   toggleFullscreen();
 });
+
+// Open Settings
+menuSettings.addEventListener('click', function() {
+  menuDropdown.classList.remove('show');
+  const settingsUrl = chrome.runtime.getURL('options.html');
+  window.open(settingsUrl, '_blank');
+});
+
+// Send Feedback
+// menuFeedback.addEventListener('click', function() {
+//   menuDropdown.classList.remove('show');
+//   const subject = encodeURIComponent('AI Guardrails Feedback');
+//   const body = encodeURIComponent('Hi! I have feedback about the AI Guardrails extension:\n\n');
+//   window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
+// });
 
 // View History
 menuHistory.addEventListener('click', function() {
@@ -213,12 +269,60 @@ menuClear.addEventListener('click', function() {
 // PROMPTS MODAL
 // ========================================
 
+// Show a random prompt that hasn't been shown yet
+function showRandomPrompt() {
+  // If all prompts have been shown, reset the list
+  if (shownPrompts.length >= categoryPrompt.prompts.length) {
+    shownPrompts = [];
+  }
+
+  // Get available prompts (ones not yet shown)
+  const availableIndices = categoryPrompt.prompts
+    .map((_, index) => index)
+    .filter(index => !shownPrompts.includes(index));
+
+  // Pick a random one
+  const randomIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+  currentPromptIndex = randomIndex;
+  shownPrompts.push(randomIndex);
+
+  // Update the prompt text
+  promptQuestion.textContent = categoryPrompt.prompts[randomIndex];
+}
+
+// Open prompts modal
 promptsToggle.addEventListener('click', function(e) {
   e.preventDefault();
   promptsModal.classList.add('show');
 });
 
+// Try a different prompt
+promptsDifferent.addEventListener('click', function() {
+  showRandomPrompt();
+});
+
+// Start writing (close modal and insert prompt into journal)
 promptsClose.addEventListener('click', function() {
+  // Insert the current prompt as a question in the textarea
+  const currentPrompt = categoryPrompt.prompts[currentPromptIndex];
+  const promptText = `${currentPrompt}\n\n`;
+
+  // Only insert if textarea is empty or user confirms
+  if (textarea.value.trim()) {
+    // If there's already content, append the prompt
+    textarea.value += `\n\n${promptText}`;
+  } else {
+    // If empty, just set it
+    textarea.value = promptText;
+  }
+
+  textarea.focus();
+
+  // Set cursor after the prompt
+  setTimeout(() => {
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+  }, 10);
+
   promptsModal.classList.remove('show');
 });
 
