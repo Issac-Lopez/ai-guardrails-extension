@@ -38,11 +38,15 @@ const GUARDRAIL_CATEGORIES = {
 const DEFAULT_ENABLED_CATEGORIES = ['relationships', 'work', 'family'];
 const SETTINGS_KEY = 'guardrails_settings';
 const STRIKES_KEY = 'guardrails_strikes';
+const EVENT_LOG_KEY = 'guardrails_event_log';
+const JOURNAL_ENTRIES_KEY = 'journal_entries';
 
 // DOM Elements
 const categoryList = document.getElementById('category-list');
 const saveSettingsBtn = document.getElementById('save-settings');
 const resetSettingsBtn = document.getElementById('reset-settings');
+const exportDataBtn = document.getElementById('export-data');
+const exportJournalBtn = document.getElementById('export-journal');
 const clearDataBtn = document.getElementById('clear-data');
 const feedbackBtn = document.getElementById('feedback-btn');
 const successToast = document.getElementById('success-toast');
@@ -164,12 +168,12 @@ function toggleCategory(categoryId) {
 // ========================================
 
 function loadDashboardStats() {
-  chrome.storage.local.get([STRIKES_KEY, 'journal_entries'], function(result) {
-    const strikes = result[STRIKES_KEY] || {};
+  chrome.storage.local.get([EVENT_LOG_KEY, JOURNAL_ENTRIES_KEY], function(result) {
+    const eventLog = result[EVENT_LOG_KEY] || [];
     const journalEntries = result[JOURNAL_ENTRIES_KEY] || {};
 
-    // Calculate stats based on current time period
-    const stats = calculateStats(strikes, journalEntries, currentTimePeriod);
+    // Calculate stats based on current time period and event log
+    const stats = calculateStats(eventLog, journalEntries, currentTimePeriod);
 
     // Update UI
     totalInterventions.textContent = stats.totalInterventions;
@@ -182,43 +186,89 @@ function loadDashboardStats() {
   });
 }
 
-function calculateStats(strikes, journalEntries, period) {
-  // For MVP, we'll use simple strike counting
-  // In the future, we can track more detailed intervention logs
-
+function calculateStats(eventLog, journalEntries, period) {
+  const now = Date.now();
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
 
-  // Calculate total interventions from strikes
-  let totalInterventions = 0;
-  const categoryBreakdown = {};
+  // Filter events by time period
+  let cutoffDate;
+  if (period === 'week') {
+    cutoffDate = new Date(now - 7 * 24 * 60 * 60 * 1000);
+  } else if (period === 'month') {
+    cutoffDate = new Date(now - 30 * 24 * 60 * 60 * 1000);
+  } else {
+    cutoffDate = new Date(0); // All time
+  }
 
-  Object.keys(GUARDRAIL_CATEGORIES).forEach(categoryId => {
-    const count = strikes[categoryId] || 0;
-    totalInterventions += count;
-    if (count > 0) {
-      categoryBreakdown[categoryId] = count;
-    }
+  const filteredEvents = eventLog.filter(event => event.timestamp >= cutoffDate.getTime());
+
+  // Calculate total interventions
+  const interventionEvents = filteredEvents.filter(e => e.event === 'intervention_triggered');
+  const totalInterventions = interventionEvents.length;
+
+  // Count alternative actions (journal, talk, wait)
+  const alternativeEvents = filteredEvents.filter(e => e.event === 'alternative_chosen');
+  const journalActions = alternativeEvents.filter(e => e.action === 'journal').length;
+  const talkActions = alternativeEvents.filter(e => e.action === 'talk').length;
+  const waitActions = alternativeEvents.filter(e => e.action === 'wait').length;
+
+  // Count blocks triggered
+  const blockEvents = filteredEvents.filter(e => e.event === 'block_active');
+  const blocksTriggered = blockEvents.length;
+
+  // Category breakdown
+  const categoryBreakdown = {};
+  interventionEvents.forEach(event => {
+    const cat = event.category;
+    categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + 1;
   });
 
-  // Count journal entries
-  const journalCount = Object.keys(journalEntries).length;
+  // Calculate streak (consecutive days without interventions)
+  const streak = calculateStreak(eventLog);
 
-  // Count blocks triggered (strike 3s)
-  // For now, we'll estimate this as total / 3 (rough approximation)
-  const blocksTriggered = Math.floor(totalInterventions / 3);
-
-  // Calculate streak (days without interventions)
-  // For MVP, this is simplified - just check if today has strikes
-  const streak = (strikes[todayStr] && Object.keys(strikes).length > 1) ? 0 : 1;
+  // Journal uses (actual entries saved)
+  const journalUses = Object.keys(journalEntries).length;
 
   return {
     totalInterventions,
-    journalUses: journalCount,
+    journalUses,
     blocksTriggered,
     streak,
-    categoryBreakdown
+    categoryBreakdown,
+    alternativeActions: {
+      journal: journalActions,
+      talk: talkActions,
+      wait: waitActions
+    }
   };
+}
+
+function calculateStreak(eventLog) {
+  // Find days with interventions
+  const daysWithInterventions = new Set();
+  eventLog.forEach(event => {
+    if (event.event === 'intervention_triggered') {
+      daysWithInterventions.add(event.date);
+    }
+  });
+
+  // Calculate consecutive days without interventions from today
+  const today = new Date();
+  let streak = 0;
+
+  for (let i = 0; i < 365; i++) {
+    const checkDate = new Date(today);
+    checkDate.setDate(today.getDate() - i);
+    const dateStr = checkDate.toISOString().split('T')[0];
+
+    if (daysWithInterventions.has(dateStr)) {
+      break;
+    }
+    streak++;
+  }
+
+  return streak;
 }
 
 function renderCategoryBreakdown(breakdown) {
@@ -274,6 +324,16 @@ function attachEventListeners() {
   //   window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
   // });
 
+  // Export data button (JSON)
+  exportDataBtn.addEventListener('click', function() {
+    exportAllData();
+  });
+
+  // Export journal entries button (TXT)
+  exportJournalBtn.addEventListener('click', function() {
+    exportJournalEntries();
+  });
+
   // Clear data button
   clearDataBtn.addEventListener('click', function() {
     if (confirm('Are you sure you want to clear ALL data? This will delete all strikes, blocks, and journal entries. This action cannot be undone.')) {
@@ -297,6 +357,80 @@ function attachEventListeners() {
 // ========================================
 // DATA MANAGEMENT
 // ========================================
+
+function exportJournalEntries() {
+  chrome.storage.local.get([JOURNAL_ENTRIES_KEY], function(result) {
+    const entries = result[JOURNAL_ENTRIES_KEY] || {};
+    const dates = Object.keys(entries).sort(); // Sort chronologically
+
+    if (dates.length === 0) {
+      showToast('No journal entries to export!');
+      return;
+    }
+
+    // Build formatted text content
+    let textContent = 'AI Guardrails - Journal Entries\n';
+    textContent += `Exported: ${new Date().toLocaleString()}\n`;
+    textContent += `Total Entries: ${dates.length}\n\n`;
+    textContent += '='.repeat(60) + '\n\n';
+
+    dates.forEach((date, index) => {
+      const content = entries[date];
+
+      textContent += `Entry: ${date}\n`;
+      textContent += '='.repeat(60) + '\n\n';
+      textContent += content + '\n\n';
+
+      if (index < dates.length - 1) {
+        textContent += '='.repeat(60) + '\n\n';
+      }
+    });
+
+    // Download as text file
+    const blob = new Blob([textContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `journal-entries-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast(`${dates.length} journal entries exported!`);
+  });
+}
+
+function exportAllData() {
+  chrome.storage.local.get(null, function(allData) {
+    const journalEntries = allData[JOURNAL_ENTRIES_KEY] || {};
+
+    // Create readable export
+    const exportData = {
+      exportDate: new Date().toISOString(),
+      version: '0.1.0',
+      settings: allData[SETTINGS_KEY] || {},
+      eventLog: allData[EVENT_LOG_KEY] || [],
+      strikes: allData[STRIKES_KEY] || {},
+      journalEntries: journalEntries,
+      journalEntryCount: Object.keys(journalEntries).length,
+      note: 'This export contains your personal journal entries and anonymous usage data. Keep this file secure.'
+    };
+
+    // Download as JSON
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `guardrails-data-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast('Data exported successfully!');
+  });
+}
 
 function clearAllData() {
   chrome.storage.local.clear(function() {
@@ -329,4 +463,4 @@ function showToast(message) {
 // CONSTANTS
 // ========================================
 
-const JOURNAL_ENTRIES_KEY = 'journal_entries';
+// const JOURNAL_ENTRIES_KEY = 'journal_entries';

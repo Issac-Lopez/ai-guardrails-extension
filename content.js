@@ -270,6 +270,45 @@ function getCurrentMessage() {
 // ========================================
 
 const STRIKE_STORAGE_KEY = 'guardrails_strikes';
+const EVENT_LOG_KEY = 'guardrails_event_log';
+
+// ========================================
+// EVENT LOGGING
+// ========================================
+
+// Log an event for analytics (local only, no personal data)
+async function logEvent(eventType, data = {}) {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([EVENT_LOG_KEY], function(result) {
+      const log = result[EVENT_LOG_KEY] || [];
+
+      // Create event entry (no emojis, no message content)
+      const event = {
+        timestamp: Date.now(),
+        date: new Date().toISOString().split('T')[0],
+        event: eventType,
+        platform: PLATFORM,
+        ...data
+      };
+
+      log.push(event);
+
+      // Keep last 1000 events max to avoid storage bloat
+      if (log.length > 1000) {
+        log.shift();
+      }
+
+      chrome.storage.local.set({ [EVENT_LOG_KEY]: log }, function() {
+        console.log('Event logged:', eventType, data);
+        resolve();
+      });
+    });
+  });
+}
+
+// ========================================
+// STRIKE MANAGEMENT
+// ========================================
 
 // Get all strikes from storage
 async function getStrikes() {
@@ -446,8 +485,15 @@ function showWarningModal(message, category, strikeLevel) {
       }
     }, 1000);
 
-    continueBtn.addEventListener('click', function() {
+    continueBtn.addEventListener('click', async function() {
       if (timer) clearInterval(timer);
+
+      // Log override
+      await logEvent('continue_anyway', {
+        category: category.id,
+        strike: strikeLevel
+      });
+
       overlay.remove();
       sendMessageToChat(message);
     });
@@ -465,8 +511,16 @@ function showWarningModal(message, category, strikeLevel) {
     // Journal Instead button
     const journalBtn = overlay.querySelector('#guardrails-journal');
     if (journalBtn) {
-      journalBtn.addEventListener('click', function() {
+      journalBtn.addEventListener('click', async function() {
         if (timer) clearInterval(timer);
+
+        // Log alternative chosen
+        await logEvent('alternative_chosen', {
+          category: category.id,
+          action: 'journal',
+          strike: strikeLevel
+        });
+
         overlay.remove();
         openJournalPage(message, category);
       });
@@ -475,8 +529,16 @@ function showWarningModal(message, category, strikeLevel) {
     // Talk to Someone button
     const talkBtn = overlay.querySelector('#guardrails-talk');
     if (talkBtn) {
-      talkBtn.addEventListener('click', function() {
+      talkBtn.addEventListener('click', async function() {
         if (timer) clearInterval(timer);
+
+        // Log alternative chosen
+        await logEvent('alternative_chosen', {
+          category: category.id,
+          action: 'talk',
+          strike: strikeLevel
+        });
+
         overlay.remove();
         showTalkToSomeoneMessage();
       });
@@ -485,8 +547,16 @@ function showWarningModal(message, category, strikeLevel) {
     // Wait 24 Hours button (only for Strike 1 & 2)
     const waitBtn = overlay.querySelector('#guardrails-wait');
     if (waitBtn) {
-      waitBtn.addEventListener('click', function() {
+      waitBtn.addEventListener('click', async function() {
         if (timer) clearInterval(timer);
+
+        // Log alternative chosen
+        await logEvent('alternative_chosen', {
+          category: category.id,
+          action: 'wait',
+          strike: strikeLevel
+        });
+
         overlay.remove();
         setWait24Hours(category);
       });
@@ -715,6 +785,12 @@ async function checkAndIntercept(event) {
 
       if (blockUntil && Date.now() < blockUntil) {
         console.log(`🛑 24-hour block is active for ${triggeredCategory.id}`);
+
+        // Log block hit
+        await logEvent('block_active', {
+          category: triggeredCategory.id
+        });
+
         showBlockedMessage(triggeredCategory, blockUntil);
         return false;
       }
@@ -722,6 +798,12 @@ async function checkAndIntercept(event) {
       // Get current strike count and increment
       const strikeCount = await incrementStrike(triggeredCategory.id);
       console.log(`⚠️ Strike ${strikeCount} triggered for ${triggeredCategory.id}`);
+
+      // Log intervention
+      await logEvent('intervention_triggered', {
+        category: triggeredCategory.id,
+        strike: strikeCount
+      });
 
       // Show the modal with appropriate strike level
       try {
@@ -832,6 +914,12 @@ function interceptTextarea() {
 
               if (blockUntil && Date.now() < blockUntil) {
                 console.log(`🛑 24-hour block is active for ${triggeredCategory.id}`);
+
+                // Log block hit
+                await logEvent('block_active', {
+                  category: triggeredCategory.id
+                });
+
                 showBlockedMessage(triggeredCategory, blockUntil);
                 return;
               }
@@ -839,6 +927,12 @@ function interceptTextarea() {
               // Get current strike count and increment
               const strikeCount = await incrementStrike(triggeredCategory.id);
               console.log(`⚠️ Strike ${strikeCount} triggered for ${triggeredCategory.id}`);
+
+              // Log intervention
+              await logEvent('intervention_triggered', {
+                category: triggeredCategory.id,
+                strike: strikeCount
+              });
 
               // Show the modal with appropriate strike level
               showWarningModal(message, triggeredCategory, strikeCount);
