@@ -215,9 +215,22 @@ const GUARDRAIL_CATEGORIES = {
   }
 };
 
-// Which categories are currently enabled
-// TODO: Make this user-configurable via settings UI
-const ENABLED_CATEGORIES = ['relationships', 'work', 'family'];
+// Default categories (if user hasn't configured yet)
+const DEFAULT_ENABLED_CATEGORIES = ['relationships', 'work', 'family'];
+const SETTINGS_KEY = 'guardrails_settings';
+
+// Get enabled categories from storage
+async function getEnabledCategories() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([SETTINGS_KEY], function(result) {
+      if (result[SETTINGS_KEY] && result[SETTINGS_KEY].enabledCategories) {
+        resolve(result[SETTINGS_KEY].enabledCategories);
+      } else {
+        resolve(DEFAULT_ENABLED_CATEGORIES);
+      }
+    });
+  });
+}
 
 // ========================================
 // UTILITY FUNCTIONS
@@ -320,8 +333,8 @@ function containsCategoryKeywords(message, category) {
 
 // Detect which category (if any) the message triggers
 // Returns the first matched category or null
-function detectTriggeredCategory(message) {
-  for (const categoryId of ENABLED_CATEGORIES) {
+function detectTriggeredCategory(message, enabledCategories) {
+  for (const categoryId of enabledCategories) {
     const category = GUARDRAIL_CATEGORIES[categoryId];
     if (containsCategoryKeywords(message, category)) {
       return category;
@@ -614,6 +627,31 @@ async function setWait24Hours(category) {
 // MESSAGE INTERCEPTION
 // ========================================
 
+// Clear the message input (to prevent sending)
+function clearMessageInput() {
+  const selectors = [
+    'div[contenteditable="true"]',
+    'textarea[placeholder*="Message"]',
+    'textarea',
+    '.ProseMirror'
+  ];
+
+  for (const selector of selectors) {
+    const element = document.querySelector(selector);
+    if (element) {
+      if (element.contentEditable === 'true') {
+        element.textContent = '';
+        element.innerHTML = '';
+      } else {
+        element.value = '';
+      }
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+      console.log('✅ Cleared message input');
+      return;
+    }
+  }
+}
+
 // Programmatically send the message (after user clicks "Continue")
 function sendMessageToChat(message) {
   const textarea = document.querySelector('div[contenteditable="true"]');
@@ -635,6 +673,12 @@ function sendMessageToChat(message) {
 
 // Main interception function - checks all enabled categories
 async function checkAndIntercept(event) {
+  // CRITICAL: Prevent default IMMEDIATELY before any async operations
+  // This ensures the click doesn't proceed while we're doing async checks
+  event.preventDefault();
+  event.stopPropagation();
+  event.stopImmediatePropagation();
+
   // Safety check: ensure chrome API is available
   if (typeof chrome === 'undefined' || !chrome.storage) {
     console.warn('⚠️ Chrome API not available, skipping guardrails check');
@@ -648,19 +692,22 @@ async function checkAndIntercept(event) {
     const sendButton = document.querySelector('button[data-testid="send-button"]');
     if (sendButton && sendButton.hasAttribute('data-guardrails-bypass')) {
       console.log('✅ Bypassing guardrails (user clicked continue)');
+      // This is a bypass, so we already let it through (preventDefault was called but we'll send it via sendMessageToChat)
       return;
     }
 
+    // Get enabled categories from settings
+    const enabledCategories = await getEnabledCategories();
+
     // Detect which category (if any) is triggered
-    const triggeredCategory = detectTriggeredCategory(message);
+    const triggeredCategory = detectTriggeredCategory(message, enabledCategories);
 
     if (triggeredCategory) {
       console.log(`🚨 Intercepted ${triggeredCategory.id} message:`, message);
 
-      // Stop the message from sending
-      event.preventDefault();
-      event.stopPropagation();
-      event.stopImmediatePropagation();
+      // CRITICAL: Clear the textarea immediately to prevent message from being sent
+      // This ensures even if event.preventDefault() fails, there's nothing to send
+      clearMessageInput();
 
       // Check if there's an active 24-hour block for this category
       const blockData = await chrome.storage.local.get([triggeredCategory.blockKey]);
@@ -685,9 +732,13 @@ async function checkAndIntercept(event) {
 
       return false;
     } else {
-      // No keywords detected - let the message through
+      // No keywords detected - send the message through
       console.log('✅ Message allowed (no keywords detected)');
+      sendMessageToChat(message);
     }
+  } else {
+    // Empty message - do nothing
+    console.log('Empty message, ignoring');
   }
 }
 
@@ -763,11 +814,17 @@ function interceptTextarea() {
               return;
             }
 
+            // Get enabled categories from settings
+            const enabledCategories = await getEnabledCategories();
+
             // Detect which category (if any) is triggered
-            const triggeredCategory = detectTriggeredCategory(message);
+            const triggeredCategory = detectTriggeredCategory(message, enabledCategories);
 
             if (triggeredCategory) {
               console.log(`🚨 Intercepted ${triggeredCategory.id} message via Enter key:`, message);
+
+              // CRITICAL: Clear the textarea immediately to prevent message from being sent
+              clearMessageInput();
 
               // Check if there's an active 24-hour block for this category
               const blockData = await chrome.storage.local.get([triggeredCategory.blockKey]);

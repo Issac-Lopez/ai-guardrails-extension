@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Guardrails - Settings</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      padding: 40px 20px;
+      line-height: 1.6;
+      color: #333;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .header {
+      background: white;
+      padding: 32px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      margin-bottom: 24px;
+    }
+
+    .header h1 {
+      font-size: 32px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      font-size: 16px;
+      color: #666;
+    }
+
+    /* Section */
+    .section {
+      background: white;
+      padding: 32px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      margin-bottom: 24px;
+    }
+
+    .section h2 {
+      font-size: 22px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-description {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    /* Category toggles */
+    .category-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .category-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+      background: #f9f9f9;
+      border-radius: 8px;
+      border: 2px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .category-item:hover {
+      background: #f5f5f5;
+      border-color: #e0e0e0;
+    }
+
+    .category-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .category-icon {
+      font-size: 28px;
+    }
+
+    .category-details h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 4px;
+    }
+
+    .category-details p {
+      font-size: 14px;
+      color: #666;
+    }
+
+    /* Toggle switch */
+    .toggle-switch {
+      position: relative;
+      width: 52px;
+      height: 28px;
+      background: #ccc;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .toggle-switch.active {
+      background: #10a37f;
+    }
+
+    .toggle-switch::before {
+      content: '';
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: white;
+      top: 3px;
+      left: 3px;
+      transition: transform 0.3s;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .toggle-switch.active::before {
+      transform: translateX(24px);
+    }
+
+    /* Stats grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
+      border-radius: 8px;
+      color: white;
+    }
+
+    .stat-card.green {
+      background: linear-gradient(135deg, #10a37f 0%, #0d8c6d 100%);
+    }
+
+    .stat-card.blue {
+      background: linear-gradient(135deg, #4a9eff 0%, #3182ce 100%);
+    }
+
+    .stat-card.orange {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    }
+
+    .stat-value {
+      font-size: 36px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    /* Category breakdown */
+    .breakdown-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .breakdown-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px;
+      background: #f9f9f9;
+      border-radius: 6px;
+    }
+
+    .breakdown-category {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    .breakdown-count {
+      font-size: 18px;
+      font-weight: 600;
+      color: #667eea;
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: #999;
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .empty-state-text {
+      font-size: 16px;
+      color: #666;
+    }
+
+    /* Action buttons */
+    .action-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .btn-primary {
+      background: #10a37f;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #0d8c6d;
+    }
+
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #1a1a1a;
+    }
+
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
+
+    .btn-danger {
+      background: #ef4444;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+
+    /* Success message */
+    .success-toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #10a37f;
+      color: white;
+      padding: 16px 24px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.3s;
+      z-index: 1000;
+    }
+
+    .success-toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Time period selector */
+    .time-selector {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .time-btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 2px solid #e0e0e0;
+      background: white;
+      color: #666;
+      transition: all 0.2s;
+    }
+
+    .time-btn.active {
+      border-color: #667eea;
+      background: #667eea;
+      color: white;
+    }
+
+    .time-btn:hover {
+      border-color: #667eea;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1>⚙️ AI Guardrails Settings</h1>
+      <p>Manage your guardrails and view your usage patterns</p>
+    </div>
+
+    <!-- Guardrail Categories Section -->
+    <div class="section">
+      <h2>🛡️ Active Guardrails</h2>
+      <p class="section-description">
+        Choose which topics should trigger guardrails when you discuss them with AI chatbots.
+      </p>
+
+      <div class="category-list" id="category-list">
+        <!-- Categories will be populated by JavaScript -->
+      </div>
+
+      <div class="action-buttons">
+        <button class="btn btn-primary" id="save-settings">Save Settings</button>
+        <button class="btn btn-secondary" id="reset-settings">Reset to Defaults</button>
+      </div>
+    </div>
+
+    <!-- Dashboard Section -->
+    <div class="section">
+      <h2>📊 Usage Dashboard</h2>
+
+      <div class="time-selector">
+        <button class="time-btn active" data-period="week">This Week</button>
+        <button class="time-btn" data-period="month">This Month</button>
+        <button class="time-btn" data-period="all">All Time</button>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="total-interventions">0</div>
+          <div class="stat-label">Total Interventions</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-value" id="journal-uses">0</div>
+          <div class="stat-label">Times Journaled</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-value" id="blocks-triggered">0</div>
+          <div class="stat-label">Blocks Triggered</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-value" id="current-streak">0</div>
+          <div class="stat-label">Day Streak</div>
+        </div>
+      </div>
+
+      <h3 style="margin-bottom: 16px; font-size: 18px;">Interventions by Category</h3>
+      <div class="breakdown-list" id="category-breakdown">
+        <div class="empty-state">
+          <div class="empty-state-icon">📊</div>
+          <div class="empty-state-text">No interventions yet. Keep using AI mindfully!</div>
+        </div>
+      </div>
+
+      <div class="action-buttons">
+        <a href="journal.html" target="_blank" class="btn btn-primary">📝 Open Journal</a>
+        <button class="btn btn-danger" id="clear-data">Clear All Data</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Success toast -->
+  <div class="success-toast" id="success-toast">
+    ✓ Settings saved successfully!
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

@@ -19,6 +19,10 @@ const menuCopy = document.getElementById('menu-copy');
 const menuExport = document.getElementById('menu-export');
 const menuClear = document.getElementById('menu-clear');
 
+// Fullscreen
+const fullscreenButton = document.getElementById('fullscreen-button');
+const fullscreenHint = document.getElementById('fullscreen-hint');
+
 // Prompts
 const promptsToggle = document.getElementById('prompts-toggle');
 const promptsModal = document.getElementById('prompts-modal');
@@ -120,6 +124,11 @@ historyModal.addEventListener('click', function(e) {
 // ========================================
 // MENU ACTIONS
 // ========================================
+
+// Fullscreen button
+fullscreenButton.addEventListener('click', function() {
+  toggleFullscreen();
+});
 
 // View History
 menuHistory.addEventListener('click', function() {
@@ -377,6 +386,73 @@ function showMessage(text, isSuccess) {
     successMessage.classList.remove('show');
   }, 3000);
 }
+
+// ========================================
+// FULLSCREEN MODE
+// ========================================
+
+// Toggle fullscreen mode
+function toggleFullscreen() {
+  if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement) {
+    // Enter fullscreen
+    const elem = document.documentElement;
+
+    if (elem.requestFullscreen) {
+      elem.requestFullscreen();
+    } else if (elem.webkitRequestFullscreen) {
+      elem.webkitRequestFullscreen();
+    } else if (elem.mozRequestFullScreen) {
+      elem.mozRequestFullScreen();
+    }
+  } else {
+    // Exit fullscreen
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    } else if (document.mozCancelFullScreen) {
+      document.mozCancelFullScreen();
+    }
+  }
+}
+
+// Handle fullscreen change events
+function onFullscreenChange() {
+  const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement);
+
+  if (isFullscreen) {
+    // Entered fullscreen - change to exit icon
+    fullscreenButton.textContent = 'fullscreen_exit';
+    fullscreenButton.title = 'Exit fullscreen (Esc)';
+
+    // Show hint for 3 seconds
+    fullscreenHint.classList.add('show');
+    setTimeout(() => {
+      fullscreenHint.classList.remove('show');
+    }, 3000);
+
+    // Focus on textarea
+    textarea.focus();
+  } else {
+    // Exited fullscreen - change to fullscreen icon
+    fullscreenButton.textContent = 'fullscreen';
+    fullscreenButton.title = 'Enter fullscreen (Ctrl+Shift+F)';
+  }
+}
+
+// Listen for fullscreen changes
+document.addEventListener('fullscreenchange', onFullscreenChange);
+document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+document.addEventListener('mozfullscreenchange', onFullscreenChange);
+
+// Keyboard shortcut: F11 or Cmd/Ctrl + Shift + F
+document.addEventListener('keydown', function(e) {
+  // Cmd/Ctrl + Shift + F
+  if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'F') {
+    e.preventDefault();
+    toggleFullscreen();
+  }
+});
 
 // Auto-focus textarea on load
 textarea.focus();

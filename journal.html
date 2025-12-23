@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Journal</title>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <style>
     * {
       margin: 0;
@@ -74,6 +75,40 @@
 
     .autosave-indicator.show {
       opacity: 1;
+    }
+
+    /* Fullscreen button (next to menu button) */
+    .fullscreen-button {
+      position: absolute;
+      top: 20px;
+      right: 60px;
+      background: none;
+      border: none;
+      font-size: 20px;
+      color: #999;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 4px;
+      transition: all 0.2s;
+      font-family: 'Material Icons';
+      font-weight: normal;
+      font-style: normal;
+      line-height: 1;
+      letter-spacing: normal;
+      text-transform: none;
+      display: inline-block;
+      white-space: nowrap;
+      word-wrap: normal;
+      direction: ltr;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      -moz-osx-font-smoothing: grayscale;
+      font-feature-settings: 'liga';
+    }
+
+    .fullscreen-button:hover {
+      background: #f5f5f5;
+      color: #666;
     }
 
     /* Menu button (subtle, top-right corner) */
@@ -352,6 +387,78 @@
       opacity: 1;
     }
 
+    /* Fullscreen mode styles */
+    body:fullscreen,
+    body:-webkit-full-screen,
+    body:-moz-full-screen {
+      background: #ffffff;
+      padding: 0;
+    }
+
+    body:fullscreen .journal-page,
+    body:-webkit-full-screen .journal-page,
+    body:-moz-full-screen .journal-page {
+      max-width: 100%;
+      width: 100%;
+      height: 100vh;
+      border-radius: 0;
+      box-shadow: none;
+      padding: 80px 120px;
+    }
+
+    /* Hide menu button, date, and prompts toggle in fullscreen (but keep fullscreen button) */
+    body:fullscreen .menu-button,
+    body:-webkit-full-screen .menu-button,
+    body:-moz-full-screen .menu-button,
+    body:fullscreen .journal-date,
+    body:-webkit-full-screen .journal-date,
+    body:-moz-full-screen .journal-date,
+    body:fullscreen .prompts-toggle,
+    body:-webkit-full-screen .prompts-toggle,
+    body:-moz-full-screen .prompts-toggle,
+    body:fullscreen .readonly-badge,
+    body:-webkit-full-screen .readonly-badge,
+    body:-moz-full-screen .readonly-badge {
+      display: none;
+    }
+
+    /* In fullscreen, position fullscreen button in top-right */
+    body:fullscreen .fullscreen-button,
+    body:-webkit-full-screen .fullscreen-button,
+    body:-moz-full-screen .fullscreen-button {
+      right: 20px;
+    }
+
+    /* Make textarea take full space in fullscreen */
+    body:fullscreen .journal-textarea,
+    body:-webkit-full-screen .journal-textarea,
+    body:-moz-full-screen .journal-textarea {
+      min-height: calc(100vh - 160px);
+      font-size: 20px;
+    }
+
+    /* Fullscreen exit hint */
+    .fullscreen-hint {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 4000;
+    }
+
+    .fullscreen-hint.show {
+      opacity: 1;
+    }
+
     /* Info alert banner */
     .info-alert {
       background: #e8f4f8;
@@ -421,6 +528,9 @@
     <!-- Readonly badge (hidden by default) -->
     <div class="readonly-badge" id="readonly-badge">📖 Past Entry (Read-only)</div>
 
+    <!-- Fullscreen button -->
+    <button class="fullscreen-button" id="fullscreen-button" title="Enter fullscreen (Ctrl+Shift+F)">fullscreen</button>
+
     <!-- Menu button -->
     <button class="menu-button" id="menu-button">⋯</button>
 
@@ -453,6 +563,9 @@
 
   <!-- Success message -->
   <div class="success-message" id="success-message"></div>
+
+  <!-- Fullscreen hint -->
+  <div class="fullscreen-hint" id="fullscreen-hint">Press Esc to exit fullscreen</div>
 
   <!-- Prompts modal -->
   <div class="prompts-modal" id="prompts-modal">
