@@ -1,7 +1,7 @@
 // ========================================
 // AI GUARDRAILS - CONTENT SCRIPT
 // ========================================
-// This script runs on chat.openai.com, chatgpt.com, and claude.ai
+// This script runs on chat.openai.com, chatgpt.com, and claude.ai (kinda - not really yet)
 // Intercepts messages containing sensitive keywords and provides
 // alternatives to using AI for emotional support
 
