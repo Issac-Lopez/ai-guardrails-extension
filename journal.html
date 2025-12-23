@@ -350,11 +350,71 @@
     .success-message.show {
       opacity: 1;
     }
+
+    /* Info alert banner */
+    .info-alert {
+      background: #e8f4f8;
+      border: 1px solid #bee5eb;
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin-bottom: 30px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #004085;
+      position: relative;
+      display: block;
+    }
+
+    .info-alert.hidden {
+      display: none;
+    }
+
+    .info-alert p {
+      margin: 0 0 12px 0;
+    }
+
+    .info-alert p:last-of-type {
+      margin-bottom: 0;
+    }
+
+    .info-alert strong {
+      font-weight: 600;
+    }
+
+    .alert-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: none;
+      border: none;
+      font-size: 20px;
+      color: #004085;
+      cursor: pointer;
+      padding: 4px 8px;
+      line-height: 1;
+      opacity: 0.6;
+      transition: opacity 0.2s;
+    }
+
+    .alert-close:hover {
+      opacity: 1;
+    }
   </style>
 </head>
 <body>
   <!-- Main journal page -->
   <div class="journal-page">
+    <!-- Info alert banner -->
+    <div class="info-alert" id="info-alert">
+      <button class="alert-close" id="alert-close" aria-label="Close">×</button>
+      <p><strong>This is a small experiment and is still in the very early stages of development.</strong></p>
+      <p>My main goal with this project is to intentionally give people their autonomy back — as humans.</p>
+      <p>If this helps even one person pause and reflect before outsourcing their feelings to AI, then it's done its job.</p>
+      <p>Thank you for taking the time to play around with this :3</p>
+      <p>Please feel free to reach out with any feedback or questions.</p>
+    </div>
+
     <!-- Readonly badge (hidden by default) -->
     <div class="readonly-badge" id="readonly-badge">📖 Past Entry (Read-only)</div>
 

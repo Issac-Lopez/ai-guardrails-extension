@@ -10,6 +10,8 @@ const menuDropdown = document.getElementById('menu-dropdown');
 const autosaveIndicator = document.getElementById('autosave-indicator');
 const successMessage = document.getElementById('success-message');
 const readonlyBadge = document.getElementById('readonly-badge');
+const infoAlert = document.getElementById('info-alert');
+const alertClose = document.getElementById('alert-close');
 
 // Menu items
 const menuHistory = document.getElementById('menu-history');
@@ -76,6 +78,14 @@ promptQuestion.textContent = categoryPrompt.modal;
 // Load today's entry and set date
 loadTodayEntry();
 updateDateDisplay();
+
+// ========================================
+// INFO ALERT CLOSE
+// ========================================
+
+alertClose.addEventListener('click', function() {
+  infoAlert.classList.add('hidden');
+});
 
 // ========================================
 // MENU DROPDOWN
