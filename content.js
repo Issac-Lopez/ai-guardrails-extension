@@ -494,8 +494,21 @@ function showWarningModal(message, category, strikeLevel) {
         strike: strikeLevel
       });
 
+      // Mark this message as allowed to bypass the guardrail
+      setBypassedMessage(message);
+
       overlay.remove();
-      sendMessageToChat(message);
+
+      // Programmatically trigger the send button click
+      // The message is already in the textarea, and we've marked it as bypassed
+      setTimeout(() => {
+        const sendButton = document.querySelector('button[data-testid="send-button"]');
+        if (sendButton) {
+          console.log('🔄 Auto-clicking send button after continue...');
+          isManualSend = true;
+          sendButton.click();
+        }
+      }, 100); // Small delay to let modal close
     });
   }
 
@@ -697,63 +710,54 @@ async function setWait24Hours(category) {
 // MESSAGE INTERCEPTION
 // ========================================
 
-// Clear the message input (to prevent sending)
-function clearMessageInput() {
-  const selectors = [
-    'div[contenteditable="true"]',
-    'textarea[placeholder*="Message"]',
-    'textarea',
-    '.ProseMirror'
-  ];
+// Store the message that's allowed to bypass (when user clicks "Continue anyway")
+let bypassedMessage = null;
+let bypassTimestamp = 0;
+const BYPASS_TIMEOUT = 5000; // 5 seconds to send after clicking continue
 
-  for (const selector of selectors) {
-    const element = document.querySelector(selector);
-    if (element) {
-      if (element.contentEditable === 'true') {
-        element.textContent = '';
-        element.innerHTML = '';
-      } else {
-        element.value = '';
-      }
-      element.dispatchEvent(new Event('input', { bubbles: true }));
-      console.log('✅ Cleared message input');
-      return;
-    }
-  }
+// Flag to prevent infinite loop when we manually trigger send
+let isManualSend = false;
+
+// Set a message as bypassed (allowed to send)
+function setBypassedMessage(message) {
+  bypassedMessage = message;
+  bypassTimestamp = Date.now();
+  console.log('✅ Message set to bypass:', message.substring(0, 50) + '...');
 }
 
-// Programmatically send the message (after user clicks "Continue")
-function sendMessageToChat(message) {
-  const textarea = document.querySelector('div[contenteditable="true"]');
-  if (textarea) {
-    textarea.textContent = message;
-    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+// Check if a message is currently bypassed
+function isBypassed(message) {
+  if (!bypassedMessage) return false;
 
-    const sendButton = document.querySelector('button[data-testid="send-button"]');
-    if (sendButton) {
-      sendButton.setAttribute('data-guardrails-bypass', 'true');
-      sendButton.click();
-
-      setTimeout(() => {
-        sendButton.removeAttribute('data-guardrails-bypass');
-      }, 100);
-    }
+  // Check if bypass has expired
+  if (Date.now() - bypassTimestamp > BYPASS_TIMEOUT) {
+    bypassedMessage = null;
+    return false;
   }
+
+  // Check if message matches (case insensitive, trimmed)
+  const matches = message.trim().toLowerCase() === bypassedMessage.trim().toLowerCase();
+
+  if (matches) {
+    // Clear the bypass after use
+    bypassedMessage = null;
+    console.log('✅ Message bypass matched - allowing send');
+  }
+
+  return matches;
 }
 
 // Main interception function - checks all enabled categories
 async function checkAndIntercept(event) {
-  // FIRST: Check if this is a bypass (before preventing default)
-  const sendButton = document.querySelector('button[data-testid="send-button"]');
-  if (sendButton && sendButton.hasAttribute('data-guardrails-bypass')) {
-    console.log('✅ Bypassing guardrails (user clicked continue)');
-    sendButton.removeAttribute('data-guardrails-bypass');
-    // Let the event proceed naturally
+  // If this is a manual send from our code, let it through immediately
+  if (isManualSend) {
+    isManualSend = false;
+    console.log('✅ Manual send detected, allowing through');
     return;
   }
 
-  // CRITICAL: Prevent default IMMEDIATELY before any async operations
-  // This ensures the click doesn't proceed while we're doing async checks
+  // CRITICAL: Prevent the event IMMEDIATELY before any async operations
+  // We'll manually trigger the send later if the message is allowed
   event.preventDefault();
   event.stopPropagation();
   event.stopImmediatePropagation();
@@ -761,25 +765,40 @@ async function checkAndIntercept(event) {
   // Safety check: ensure chrome API is available
   if (typeof chrome === 'undefined' || !chrome.storage) {
     console.warn('⚠️ Chrome API not available, skipping guardrails check');
+    // Manually trigger send since we prevented it
+    isManualSend = true;
+    const sendButton = document.querySelector('button[data-testid="send-button"]');
+    if (sendButton) sendButton.click();
     return;
   }
 
   const message = getCurrentMessage();
 
-  if (message.trim()) {
+  if (!message.trim()) {
+    // Empty message, nothing to do
+    return;
+  }
 
-    // Get enabled categories from settings
-    const enabledCategories = await getEnabledCategories();
+  // Check if this message is bypassed (user clicked "Continue anyway")
+  if (isBypassed(message)) {
+    console.log('✅ Message is bypassed, allowing send');
+    // Manually trigger the send since we prevented it earlier
+    isManualSend = true;
+    const sendButton = document.querySelector('button[data-testid="send-button"]');
+    if (sendButton) {
+      sendButton.click();
+    }
+    return;
+  }
 
-    // Detect which category (if any) is triggered
-    const triggeredCategory = detectTriggeredCategory(message, enabledCategories);
+  // Get enabled categories from settings
+  const enabledCategories = await getEnabledCategories();
 
-    if (triggeredCategory) {
-      console.log(`🚨 Intercepted ${triggeredCategory.id} message:`, message);
+  // Detect which category (if any) is triggered
+  const triggeredCategory = detectTriggeredCategory(message, enabledCategories);
 
-      // CRITICAL: Clear the textarea immediately to prevent message from being sent
-      // This ensures even if event.preventDefault() fails, there's nothing to send
-      clearMessageInput();
+  if (triggeredCategory) {
+    console.log(`🚨 Intercepted ${triggeredCategory.id} message:`, message);
 
       // Check if there's an active 24-hour block for this category
       const blockData = await chrome.storage.local.get([triggeredCategory.blockKey]);
@@ -807,6 +826,23 @@ async function checkAndIntercept(event) {
         strike: strikeCount
       });
 
+      // If strike 3, automatically set 24-hour block and clear the message
+      if (strikeCount >= 3) {
+        const blockUntil = Date.now() + (24 * 60 * 60 * 1000); // 24 hours from now
+        await chrome.storage.local.set({
+          [triggeredCategory.blockKey]: blockUntil
+        });
+        console.log(`🛑 Strike 3 reached - setting 24-hour block for ${triggeredCategory.id}`);
+
+        // Clear the message from the textarea since they can't send it
+        const textarea = document.querySelector('div[contenteditable="true"]');
+        if (textarea) {
+          textarea.textContent = '';
+          textarea.innerHTML = '';
+          textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }
+
       // Show the modal with appropriate strike level
       try {
         showWarningModal(message, triggeredCategory, strikeCount);
@@ -815,14 +851,14 @@ async function checkAndIntercept(event) {
       }
 
       return false;
-    } else {
-      // No keywords detected - send the message through
-      console.log('✅ Message allowed (no keywords detected)');
-      sendMessageToChat(message);
-    }
   } else {
-    // Empty message - do nothing
-    console.log('Empty message, ignoring');
+    // No guardrail triggered - manually send the message since we prevented the event
+    console.log('✅ No guardrail triggered, sending message');
+    isManualSend = true;
+    const sendButton = document.querySelector('button[data-testid="send-button"]');
+    if (sendButton) {
+      sendButton.click();
+    }
   }
 }
 
@@ -875,6 +911,13 @@ function interceptTextarea() {
         textarea.addEventListener('keydown', async function(event) {
           // Only intercept Enter key (without Shift, which creates new line)
           if (event.key === 'Enter' && !event.shiftKey) {
+            // If this is a manual send, let it through
+            if (isManualSend) {
+              isManualSend = false;
+              console.log('✅ Manual send (Enter key), allowing through');
+              return;
+            }
+
             const message = getCurrentMessage();
 
             if (!message.trim()) {
@@ -882,22 +925,22 @@ function interceptTextarea() {
               return;
             }
 
-            // FIRST: Check if this is a bypass (before preventing default)
-            const sendButton = document.querySelector('button[data-testid="send-button"]') ||
-                             document.querySelector('button[aria-label*="Send"]') ||
-                             document.querySelector('button[aria-label*="send"]');
-
-            if (sendButton && sendButton.hasAttribute('data-guardrails-bypass')) {
-              console.log('✅ Bypassing guardrails (Enter key, user clicked continue)');
-              sendButton.removeAttribute('data-guardrails-bypass');
-              // Let Enter key proceed naturally
-              return;
-            }
-
-            // Now prevent default for non-bypass Enter presses
+            // CRITICAL: Prevent immediately before async operations
             event.preventDefault();
             event.stopPropagation();
             event.stopImmediatePropagation();
+
+            // Check if this message is bypassed
+            if (isBypassed(message)) {
+              console.log('✅ Message is bypassed (Enter key), allowing send');
+              // Manually trigger send
+              isManualSend = true;
+              const sendButton = document.querySelector('button[data-testid="send-button"]');
+              if (sendButton) {
+                sendButton.click();
+              }
+              return;
+            }
 
             // Get enabled categories from settings
             const enabledCategories = await getEnabledCategories();
@@ -907,9 +950,6 @@ function interceptTextarea() {
 
             if (triggeredCategory) {
               console.log(`🚨 Intercepted ${triggeredCategory.id} message via Enter key:`, message);
-
-              // CRITICAL: Clear the textarea immediately to prevent message from being sent
-              clearMessageInput();
 
               // Check if there's an active 24-hour block for this category
               const blockData = await chrome.storage.local.get([triggeredCategory.blockKey]);
@@ -937,12 +977,33 @@ function interceptTextarea() {
                 strike: strikeCount
               });
 
+              // If strike 3, automatically set 24-hour block and clear the message
+              if (strikeCount >= 3) {
+                const blockUntil = Date.now() + (24 * 60 * 60 * 1000); // 24 hours from now
+                await chrome.storage.local.set({
+                  [triggeredCategory.blockKey]: blockUntil
+                });
+                console.log(`🛑 Strike 3 reached - setting 24-hour block for ${triggeredCategory.id}`);
+
+                // Clear the message from the textarea since they can't send it
+                const textarea = document.querySelector('div[contenteditable="true"]');
+                if (textarea) {
+                  textarea.textContent = '';
+                  textarea.innerHTML = '';
+                  textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+              }
+
               // Show the modal with appropriate strike level
               showWarningModal(message, triggeredCategory, strikeCount);
             } else {
-              // No keywords detected - send the message
-              console.log('✅ Message allowed (no keywords detected) - sending via Enter');
-              sendMessageToChat(message);
+              // No guardrail triggered - manually send the message since we prevented the event
+              console.log('✅ No guardrail triggered (Enter key), sending message');
+              isManualSend = true;
+              const sendButton = document.querySelector('button[data-testid="send-button"]');
+              if (sendButton) {
+                sendButton.click();
+              }
             }
           }
         }, true);
