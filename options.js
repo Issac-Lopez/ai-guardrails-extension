@@ -53,7 +53,6 @@ const successToast = document.getElementById('success-toast');
 const totalInterventions = document.getElementById('total-interventions');
 const journalUses = document.getElementById('journal-uses');
 const blocksTriggered = document.getElementById('blocks-triggered');
-const currentStreak = document.getElementById('current-streak');
 const categoryBreakdown = document.getElementById('category-breakdown');
 const timeBtns = document.querySelectorAll('.time-btn');
 
@@ -179,7 +178,6 @@ function loadDashboardStats() {
     totalInterventions.textContent = stats.totalInterventions;
     journalUses.textContent = stats.journalUses;
     blocksTriggered.textContent = stats.blocksTriggered;
-    currentStreak.textContent = stats.streak;
 
     // Render category breakdown
     renderCategoryBreakdown(stats.categoryBreakdown);
