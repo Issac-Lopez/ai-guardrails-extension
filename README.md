@@ -18,9 +18,9 @@ Stop using AI chatbots to replace human connection. This extension detects when 
 - Prevents send and shows intervention modal
 
 **3 Guardrail Categories** (toggle on/off individually)
-- 💔 **Relationships** - Dating, breakups, partner conflicts, relationship decisions
-- 💼 **Work** - Boss venting, job conflicts, quitting decisions, toxic workplace issues
-- 👨‍👩‍👧 **Family** - Family conflicts, parenting decisions, difficult family conversations
+- **Relationships** - Dating, breakups, partner conflicts, relationship decisions
+- **Work** - Boss venting, job conflicts, quitting decisions, toxic workplace issues
+- **Family** - Family conflicts, parenting decisions, difficult family conversations
 - Each category has independent strike counting (resets daily)
 - Separate 24-hour block tracking per category
 
@@ -30,10 +30,10 @@ Stop using AI chatbots to replace human connection. This extension detects when 
 - **Strike 3:** Hard block for 24 hours - no "Continue anyway" option, message is cleared
 
 **Alternative Actions** (shown in every intervention)
-- 📝 **Journal Instead** - Opens built-in journal in new tab
-- 💬 **Talk to Someone** - Encouragement to reach out to real people
-- ⏰ **Wait 24 Hours** - Self-impose 24-hour block for that category
-- 🚫 **Continue Anyway** - Override with forced delay (Strike 1-2 only)
+- **Journal Instead** - Opens built-in journal in new tab
+- **Talk to Someone** - Encouragement to reach out to real people
+- **Wait 24 Hours** - Self-impose 24-hour block for that category
+- **Continue Anyway** - Override with forced delay (Strike 1-2 only)
 
 **Settings & Dashboard**
 - Options page to toggle categories on/off
@@ -74,27 +74,27 @@ Stop using AI chatbots to replace human connection. This extension detects when 
 5. Select the extension folder
 
 ### Supported Sites
-- ✅ **ChatGPT** (chat.openai.com, chatgpt.com) - Fully working
-- ⏳ **Claude.ai** - Planned (code exists but not functional yet)
+- **ChatGPT** (chat.openai.com, chatgpt.com) - Fully working
+- **Claude.ai** - Planned (code exists but not functional yet)
 
 ## Current Status
 
 **What's Working:**
-- ✅ ChatGPT message interception
-- ✅ All 3 guardrail categories with keyword detection
-- ✅ Three-strike system with proper escalation
-- ✅ "Continue anyway" correctly sends message to ChatGPT
-- ✅ Strike 3 automatic 24-hour blocks
-- ✅ All alternative actions functional
-- ✅ Dashboard with stats and analytics
-- ✅ Journal with local storage and export
-- ✅ Daily strike reset at midnight
+- ChatGPT message interception
+- All 3 guardrail categories with keyword detection
+- Three-strike system with proper escalation
+- "Continue anyway" correctly sends message to ChatGPT
+- Strike 3 automatic 24-hour blocks
+- All alternative actions functional
+- Dashboard with stats and analytics
+- Journal with local storage and export
+- Daily strike reset at midnight
 
 **Known Limitations:**
-- ⚠️ Claude.ai support not yet implemented
-- ⚠️ Only keyword-based detection (no AI/sentiment analysis)
-- ⚠️ Desktop browsers only (Chrome, Edge, Brave)
-- ⚠️ Possible false positives/negatives with keyword matching
+- Claude.ai support not yet implemented
+- Only keyword-based detection (no AI/sentiment analysis)
+- Desktop browsers only (Chrome, Edge, Brave)
+- Possible false positives/negatives with keyword matching
 
 ## Roadmap
 
