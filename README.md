@@ -1,6 +1,8 @@
 # AI Guardrails - Chrome Extension (MVP)
 
 A browser extension that helps you use AI chatbots more intentionally by adding gentle guardrails when discussing emotionally sensitive topics.
+> [!NOTE]
+> [simple-mvp](https://github.com/Issac-Lopez/ai-guardrails-extension/tree/simple-mvp) is the main development branch currently being worked off of.
 
 ## Purpose
 
