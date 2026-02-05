@@ -40,6 +40,7 @@ const SETTINGS_KEY = 'guardrails_settings';
 const STRIKES_KEY = 'guardrails_strikes';
 const EVENT_LOG_KEY = 'guardrails_event_log';
 const JOURNAL_ENTRIES_KEY = 'journal_entries';
+const MODAL_SYSTEM_ENABLED_KEY = 'modal_system_enabled';
 
 // DOM Elements
 const categoryList = document.getElementById('category-list');
@@ -55,6 +56,9 @@ const journalUses = document.getElementById('journal-uses');
 const blocksTriggered = document.getElementById('blocks-triggered');
 const categoryBreakdown = document.getElementById('category-breakdown');
 const timeBtns = document.querySelectorAll('.time-btn');
+const enableModalsToggle = document.getElementById('enable-modals-toggle');
+const toastAppearancesEl = document.getElementById('toast-appearances');
+const toastCategoryBreakdownEl = document.getElementById('toast-category-breakdown');
 
 // Current settings state
 let enabledCategories = [...DEFAULT_ENABLED_CATEGORIES];
@@ -77,13 +81,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Load settings from storage
 function loadSettings() {
-  chrome.storage.local.get([SETTINGS_KEY], function(result) {
+  chrome.storage.local.get([SETTINGS_KEY, MODAL_SYSTEM_ENABLED_KEY], function(result) {
     if (result[SETTINGS_KEY] && result[SETTINGS_KEY].enabledCategories) {
       enabledCategories = result[SETTINGS_KEY].enabledCategories;
     } else {
       enabledCategories = [...DEFAULT_ENABLED_CATEGORIES];
     }
     renderCategories();
+
+    // Load modal system enabled state (default: true)
+    const modalEnabled = result[MODAL_SYSTEM_ENABLED_KEY] === true;
+    if (enableModalsToggle) {
+      enableModalsToggle.classList.toggle('active', modalEnabled);
+    }
   });
 }
 
@@ -181,6 +191,12 @@ function loadDashboardStats() {
 
     // Render category breakdown
     renderCategoryBreakdown(stats.categoryBreakdown);
+
+    // Update toast stats
+    if (toastAppearancesEl) {
+      toastAppearancesEl.textContent = stats.toastCount;
+    }
+    renderToastCategoryBreakdown(stats.toastCatBreakdown);
   });
 }
 
@@ -228,12 +244,23 @@ function calculateStats(eventLog, journalEntries, period) {
   // Journal uses (actual entries saved)
   const journalUses = Object.keys(journalEntries).length;
 
+  // Toast appearances
+  const toastEvents = filteredEvents.filter(function(e) { return e.event === 'toast_shown'; });
+  const toastCount = toastEvents.length;
+  const toastCatBreakdown = {};
+  toastEvents.forEach(function(event) {
+    const cat = event.category;
+    toastCatBreakdown[cat] = (toastCatBreakdown[cat] || 0) + 1;
+  });
+
   return {
     totalInterventions,
     journalUses,
     blocksTriggered,
     streak,
     categoryBreakdown,
+    toastCount,
+    toastCatBreakdown,
     alternativeActions: {
       journal: journalActions,
       talk: talkActions,
@@ -304,6 +331,41 @@ function renderCategoryBreakdown(breakdown) {
   });
 }
 
+function renderToastCategoryBreakdown(breakdown) {
+  if (!toastCategoryBreakdownEl) return;
+
+  if (!breakdown || Object.keys(breakdown).length === 0) {
+    toastCategoryBreakdownEl.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-text">No toast reminders yet.</div>
+      </div>
+    `;
+    return;
+  }
+
+  toastCategoryBreakdownEl.innerHTML = '';
+
+  const sortedCategories = Object.entries(breakdown)
+    .sort(function(a, b) { return b[1] - a[1]; });
+
+  sortedCategories.forEach(function([categoryId, count]) {
+    const category = GUARDRAIL_CATEGORIES[categoryId];
+    if (!category) return;
+
+    const item = document.createElement('div');
+    item.className = 'breakdown-item';
+    item.innerHTML = `
+      <div class="breakdown-category">
+        <span>${category.icon}</span>
+        <span>${category.name}</span>
+      </div>
+      <div class="breakdown-count" style="color: #00897b;">${count}</div>
+    `;
+
+    toastCategoryBreakdownEl.appendChild(item);
+  });
+}
+
 // ========================================
 // EVENT LISTENERS
 // ========================================
@@ -340,6 +402,16 @@ function attachEventListeners() {
       }
     }
   });
+
+  // Modal system toggle
+  if (enableModalsToggle) {
+    enableModalsToggle.addEventListener('click', function() {
+      const isActive = this.classList.toggle('active');
+      chrome.storage.local.set({ [MODAL_SYSTEM_ENABLED_KEY]: isActive }, function() {
+        showToast(isActive ? 'Modal system enabled' : 'Modal system disabled');
+      });
+    });
+  }
 
   // Time period selector
   timeBtns.forEach(btn => {
@@ -441,6 +513,11 @@ function clearAllData() {
     // Reload UI
     renderCategories();
     loadDashboardStats();
+
+    // Reset modal toggle
+    if (enableModalsToggle) {
+      enableModalsToggle.classList.remove('active');
+    }
   });
 }
 

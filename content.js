@@ -1,7 +1,7 @@
 // ========================================
 // AI GUARDRAILS - CONTENT SCRIPT
 // ========================================
-// This script runs on chat.openai.com, chatgpt.com, and claude.ai (kinda - not really yet)
+// This script runs on chat.openai.com and chatgpt.com
 // Intercepts messages containing sensitive keywords and provides
 // alternatives to using AI for emotional support
 
@@ -13,9 +13,7 @@ console.log('AI Guardrails extension loaded!');
 
 function detectPlatform() {
   const hostname = window.location.hostname;
-  if (hostname.includes('claude.ai')) {
-    return 'claude';
-  } else if (hostname.includes('openai.com') || hostname.includes('chatgpt.com')) {
+  if (hostname.includes('openai.com') || hostname.includes('chatgpt.com')) {
     return 'chatgpt';
   }
   return 'unknown';
@@ -245,10 +243,10 @@ function getTodayDateString() {
 // Get the current message from the textarea (works across platforms)
 function getCurrentMessage() {
   const selectors = [
-    'div[contenteditable="true"]',  // ChatGPT and Claude.ai
+    'div[contenteditable="true"]',  // ChatGPT
     'textarea[placeholder*="Message"]',  // Fallback
     'textarea',  // Generic textarea
-    '.ProseMirror'  // Some versions use ProseMirror editor
+    '.ProseMirror'  // ProseMirror editor
   ];
 
   for (const selector of selectors) {
@@ -271,6 +269,14 @@ function getCurrentMessage() {
 
 const STRIKE_STORAGE_KEY = 'guardrails_strikes';
 const EVENT_LOG_KEY = 'guardrails_event_log';
+
+// Toast notification constants
+const TOAST_KEYWORD_COUNT_KEY = 'toast_keyword_count';
+const TOAST_LAST_RESET_KEY = 'toast_last_reset_date';
+const TOAST_SHOWN_AT_KEY = 'toast_shown_at';
+const TOAST_CATEGORY_TRIGGERS_KEY = 'toast_category_triggers';
+const MODAL_SYSTEM_ENABLED_KEY = 'modal_system_enabled';
+const TOAST_THRESHOLDS = [1, 3, 6, 9, 12];
 
 // ========================================
 // EVENT LOGGING
@@ -304,6 +310,211 @@ async function logEvent(eventType, data = {}) {
       });
     });
   });
+}
+
+// ========================================
+// TOAST NOTIFICATION SYSTEM
+// ========================================
+
+// Check if modal system is enabled (default: true)
+async function isModalSystemEnabled() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([MODAL_SYSTEM_ENABLED_KEY], function(result) {
+      resolve(result[MODAL_SYSTEM_ENABLED_KEY] === true);
+    });
+  });
+}
+
+// Get toast state from storage (with daily reset)
+async function getToastState() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(
+      [TOAST_KEYWORD_COUNT_KEY, TOAST_LAST_RESET_KEY, TOAST_SHOWN_AT_KEY, TOAST_CATEGORY_TRIGGERS_KEY],
+      function(result) {
+        const today = getTodayDateString();
+        const lastReset = result[TOAST_LAST_RESET_KEY];
+
+        if (lastReset !== today) {
+          // New day - reset counter
+          resolve({
+            count: 0,
+            lastReset: today,
+            shownAt: [],
+            categories: {}
+          });
+        } else {
+          resolve({
+            count: result[TOAST_KEYWORD_COUNT_KEY] || 0,
+            lastReset: today,
+            shownAt: result[TOAST_SHOWN_AT_KEY] || [],
+            categories: result[TOAST_CATEGORY_TRIGGERS_KEY] || {}
+          });
+        }
+      }
+    );
+  });
+}
+
+// Save toast state to storage
+async function saveToastState(state) {
+  return new Promise((resolve) => {
+    chrome.storage.local.set({
+      [TOAST_KEYWORD_COUNT_KEY]: state.count,
+      [TOAST_LAST_RESET_KEY]: state.lastReset,
+      [TOAST_SHOWN_AT_KEY]: state.shownAt,
+      [TOAST_CATEGORY_TRIGGERS_KEY]: state.categories
+    }, resolve);
+  });
+}
+
+// Handle toast notification logic (increment count, check thresholds, show if needed)
+async function handleToastNotification(categoryId) {
+  try {
+    const state = await getToastState();
+
+    // Increment count and track category
+    state.count += 1;
+    state.categories[categoryId] = (state.categories[categoryId] || 0) + 1;
+
+    // Check if we've hit a threshold that hasn't been shown yet
+    const threshold = TOAST_THRESHOLDS.find(function(t) {
+      return t === state.count && state.shownAt.indexOf(t) === -1;
+    });
+
+    if (threshold) {
+      // Mark threshold as shown
+      state.shownAt.push(threshold);
+
+      // Show toast notification
+      showToastNotification(categoryId);
+
+      // Log toast event
+      await logEvent('toast_shown', {
+        threshold: threshold,
+        category: categoryId,
+        total_count: state.count
+      });
+    }
+
+    // Save updated state
+    await saveToastState(state);
+
+    // Show persistent journal button once any toast has been shown
+    if (state.shownAt.length > 0) {
+      showPersistentJournalButton(categoryId);
+    }
+  } catch (error) {
+    console.error('Error handling toast notification:', error);
+    // Fail gracefully - don't break chat interface
+  }
+}
+
+// Track last detected category for the persistent journal button
+let lastDetectedCategoryId = null;
+
+// Show a small journal button next to the send button
+function showPersistentJournalButton(categoryId) {
+  lastDetectedCategoryId = categoryId;
+
+  // Don't add if already exists
+  if (document.querySelector('.guardrails-journal-btn')) return;
+
+  // Find the send button's parent container
+  const sendButton = document.querySelector('button[data-testid="send-button"]');
+  if (!sendButton) return;
+
+  const container = sendButton.parentElement;
+  if (!container) return;
+
+  const journalBtn = document.createElement('button');
+  journalBtn.className = 'guardrails-journal-btn';
+  journalBtn.setAttribute('aria-label', 'Open journal');
+  journalBtn.setAttribute('title', 'Write it out');
+  journalBtn.textContent = '\u{1F4DD}';
+
+  journalBtn.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const catId = lastDetectedCategoryId || 'relationships';
+    const category = GUARDRAIL_CATEGORIES[catId];
+    if (category) {
+      openJournalPage('', category);
+    }
+  });
+
+  // Insert before the send button
+  container.insertBefore(journalBtn, sendButton);
+}
+
+// Show the passive toast notification
+function showToastNotification(categoryId) {
+  // Remove any existing toast
+  const existingToast = document.querySelector('.guardrails-toast');
+  if (existingToast) existingToast.remove();
+
+  const toast = document.createElement('div');
+  toast.className = 'guardrails-toast';
+  toast.innerHTML = `
+    <button class="guardrails-toast-close">&times;</button>
+    <div class="guardrails-toast-text">Consider journaling?</div>
+    <button class="guardrails-toast-action">Write it out</button>
+  `;
+
+  document.body.appendChild(toast);
+
+  // Reposition toast above composer (or above promo banner if present)
+  function repositionToast() {
+    var composerSurface = document.querySelector('[data-composer-surface="true"]');
+    if (!composerSurface) return;
+
+    // Banner is a sibling of the form, not inside it
+    var promoBanner = document.querySelector('#thread-bottom-container .bottom-full aside');
+    var anchorEl = promoBanner || composerSurface;
+    var anchorRect = anchorEl.getBoundingClientRect();
+    var composerRect = composerSurface.getBoundingClientRect();
+    var toastWidth = toast.offsetWidth;
+
+    toast.style.bottom = 'auto';
+    toast.style.right = 'auto';
+    toast.style.width = composerRect.width + 'px';
+    toast.style.top = (anchorRect.top - toast.offsetHeight - 8) + 'px';
+    toast.style.left = composerRect.left + 'px';
+  }
+
+  // Poll to handle page transitions and dynamic elements (promo banner)
+  var repositionInterval = setInterval(function() {
+    if (!toast.parentNode) {
+      clearInterval(repositionInterval);
+      return;
+    }
+    repositionToast();
+  }, 200);
+
+  // Delay fade-in to let ChatGPT's page transition settle
+  setTimeout(function() {
+    if (!toast.parentNode) return;
+    repositionToast();
+    requestAnimationFrame(function() {
+      toast.classList.add('guardrails-toast-visible');
+    });
+  }, 600);
+
+  // Close button
+  toast.querySelector('.guardrails-toast-close').addEventListener('click', function() {
+    toast.classList.remove('guardrails-toast-visible');
+    setTimeout(function() { if (toast.parentNode) toast.remove(); }, 300);
+  });
+
+  // "Write it out" button - opens journal with category
+  toast.querySelector('.guardrails-toast-action').addEventListener('click', function() {
+    const category = GUARDRAIL_CATEGORIES[categoryId];
+    if (category) {
+      openJournalPage('', category);
+    }
+    toast.classList.remove('guardrails-toast-visible');
+    setTimeout(function() { if (toast.parentNode) toast.remove(); }, 300);
+  });
+
 }
 
 // ========================================
@@ -800,6 +1011,23 @@ async function checkAndIntercept(event) {
   if (triggeredCategory) {
     console.log(`🚨 Intercepted ${triggeredCategory.id} message:`, message);
 
+      // Check if modal system is enabled
+      const modalEnabled = await isModalSystemEnabled();
+
+      if (!modalEnabled) {
+        // Modal system disabled - use toast system instead
+        await handleToastNotification(triggeredCategory.id);
+
+        // Allow message to send (toast is non-blocking)
+        console.log('✅ Modal system disabled, sending message');
+        isManualSend = true;
+        const sendButton = document.querySelector('button[data-testid="send-button"]');
+        if (sendButton) {
+          sendButton.click();
+        }
+        return;
+      }
+
       // Check if there's an active 24-hour block for this category
       const blockData = await chrome.storage.local.get([triggeredCategory.blockKey]);
       const blockUntil = blockData[triggeredCategory.blockKey];
@@ -869,9 +1097,7 @@ async function checkAndIntercept(event) {
 // Intercept send button clicks
 function interceptSendButton() {
   const selectors = [
-    'button[data-testid="send-button"]',  // ChatGPT
-    'button[aria-label*="Send"]',  // Claude.ai (case sensitive)
-    'button[aria-label*="send"]'   // Claude.ai (case variation)
+    'button[data-testid="send-button"]'  // ChatGPT
   ];
 
   for (const selector of selectors) {
@@ -893,7 +1119,7 @@ function interceptSendButton() {
 // Intercept Enter key on textarea
 function interceptTextarea() {
   const selectors = [
-    'div[contenteditable="true"]',  // ChatGPT and Claude.ai
+    'div[contenteditable="true"]',  // ChatGPT
     'textarea[placeholder*="Message"]',  // Fallback
     'textarea',  // Generic textarea
     '.ProseMirror'  // ProseMirror editor
@@ -950,6 +1176,23 @@ function interceptTextarea() {
 
             if (triggeredCategory) {
               console.log(`🚨 Intercepted ${triggeredCategory.id} message via Enter key:`, message);
+
+              // Check if modal system is enabled
+              const modalEnabled = await isModalSystemEnabled();
+
+              if (!modalEnabled) {
+                // Modal system disabled - use toast system instead
+                await handleToastNotification(triggeredCategory.id);
+
+                // Allow message to send (toast is non-blocking)
+                console.log('✅ Modal system disabled (Enter key), sending message');
+                isManualSend = true;
+                const sendButton = document.querySelector('button[data-testid="send-button"]');
+                if (sendButton) {
+                  sendButton.click();
+                }
+                return;
+              }
 
               // Check if there's an active 24-hour block for this category
               const blockData = await chrome.storage.local.get([triggeredCategory.blockKey]);

@@ -183,6 +183,10 @@
       background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
     }
 
+    .stat-card.teal {
+      background: linear-gradient(135deg, #26a69a 0%, #00897b 100%);
+    }
+
     .stat-value {
       font-size: 36px;
       font-weight: 700;
@@ -368,6 +372,23 @@
       </div>
     </div>
 
+    <!-- Notification Style -->
+    <div class="section">
+      <h2>🔔 Notification Style</h2>
+      <p class="section-description">
+        Choose how you want to be reminded when discussing sensitive topics.
+      </p>
+      <div class="category-item">
+        <div class="category-info">
+          <div class="category-details">
+            <h3>Use Traditional Intervention Modals</h3>
+            <p>Show full-screen modals with 3-strike system in addition to gentle toast notifications</p>
+          </div>
+        </div>
+        <div class="toggle-switch" id="enable-modals-toggle"></div>
+      </div>
+    </div>
+
     <!-- Dashboard Section -->
     <div class="section">
       <h2>📊 Usage Dashboard</h2>
@@ -391,6 +412,10 @@
           <div class="stat-value" id="blocks-triggered">0</div>
           <div class="stat-label">Blocks Triggered</div>
         </div>
+        <div class="stat-card teal">
+          <div class="stat-value" id="toast-appearances">0</div>
+          <div class="stat-label">Gentle Reminders</div>
+        </div>
       </div>
 
       <h3 style="margin-bottom: 16px; font-size: 18px;">Interventions by Category</h3>
@@ -398,6 +423,13 @@
         <div class="empty-state">
           <div class="empty-state-icon">📊</div>
           <div class="empty-state-text">No interventions yet. Keep using AI mindfully!</div>
+        </div>
+      </div>
+
+      <h3 style="margin: 32px 0 16px 0; font-size: 18px;">Toast Reminders by Category</h3>
+      <div class="breakdown-list" id="toast-category-breakdown">
+        <div class="empty-state">
+          <div class="empty-state-text">No toast reminders yet.</div>
         </div>
       </div>
 
