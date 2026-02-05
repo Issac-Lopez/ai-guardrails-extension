@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AI Guardrails",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Helps you use AI chatbots more intentionally",
 
   "icons": {
@@ -32,8 +32,7 @@
     {
       "matches": [
         "https://chat.openai.com/*",
-        "https://chatgpt.com/*",
-        "https://claude.ai/*"
+        "https://chatgpt.com/*"
       ],
       "js": ["content.js"],
       "css": ["modal.css"],
@@ -46,8 +45,7 @@
       "resources": ["journal.html", "journal.js"],
       "matches": [
         "https://chat.openai.com/*",
-        "https://chatgpt.com/*",
-        "https://claude.ai/*"
+        "https://chatgpt.com/*"
       ]
     }
   ]
